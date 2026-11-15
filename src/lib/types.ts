@@ -1,6 +1,15 @@
 export type Stats = { MIR: number; MAC: number; SUP: number; MOV: number; POL: number; CON: number };
 
-export type HistoryPoint = { date: string; ovr: number; base?: boolean; note?: string };
+export type HistoryPoint = { date: string; ovr: number; base?: boolean; note?: string; stats?: Stats };
+
+export type PlayerProfile = {
+  bio?: string;
+  steamId?: string;
+  socials?: { twitch?: string; steam?: string; discord?: string; website?: string };
+  updatedAt?: string;
+};
+
+export type Lineup = { id: string; name: string; playerIds: string[]; updatedAt: string; owned: boolean };
 
 export type Frame = { style: string; c1?: string; c2?: string; pad?: number };
 
@@ -34,6 +43,8 @@ export type Player = {
   c1: string;
   c2: string;
   history: HistoryPoint[];
+  profile?: PlayerProfile;
+  updatedAt?: string;
   footer?: string;
   footerSize?: number;
   footerColor?: string;

@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, useData } from "../lib/data";
-import { DEFAULT_TIER_CONFIG, REGIONS, calculateOVR, getPlayerHistory, getPlayerOvr } from "../lib/cards";
+import { DEFAULT_TIER_CONFIG, REGIONS, calculateOVR, getPlayerOvr } from "../lib/cards";
 import { FRAME_PRESETS, getCardTier, type Tier } from "../lib/rarity";
 import type { BgSettings, Player, Stats, Team, TierBand } from "../lib/types";
 import { Card } from "../components/Card";
@@ -123,9 +123,9 @@ function blankPlayer(teamId: string): Player {
 
 function withHistory(p: Player, date: string, rebase: boolean): Player {
   const ovr = Math.min(99, Math.max(1, Math.round(p.ovr ?? calculateOVR(p.stats))));
-  const history = (p.id ? getPlayerHistory(p) : []).map((h) => ({ ...h }));
+  const history = (p.id ? p.history : []).map((h) => ({ ...h }));
   const same = history.find((h) => h.date === date);
-  if (same) same.ovr = ovr; else history.push({ date, ovr });
+  if (same) { same.ovr = ovr; same.stats = { ...p.stats }; } else history.push({ date, ovr, stats: { ...p.stats } });
   history.sort((a, b) => a.date.localeCompare(b.date));
   if (rebase) history[history.length - 1].base = true;
   return { ...p, ovr, history };
@@ -268,6 +268,15 @@ function PlayerForm({ editId, onEditId }: { editId: string | null; onEditId: (id
             </>
           )}
         </div>
+
+        <fieldset className="space-y-4 rounded-2xl border border-zinc-200/10 p-4">
+          <legend className="text-xs font-bold uppercase tracking-wider text-zinc-300">Perfil público (opcional)</legend>
+          <Field label="Biografia curta"><textarea className={input} rows={3} maxLength={500} value={d.profile?.bio ?? ""} onChange={(e) => set({ profile: { ...d.profile, bio: e.target.value } })} /></Field>
+          <Field label="SteamID (17 dígitos)"><input className={input} inputMode="numeric" maxLength={17} value={d.profile?.steamId ?? ""} onChange={(e) => set({ profile: { ...d.profile, steamId: e.target.value } })} /></Field>
+          <div className="grid sm:grid-cols-2 gap-4">{(["twitch", "steam", "discord", "website"] as const).map((key) => <Field key={key} label={key === "website" ? "Outra rede / site (URL HTTPS)" : `${key} (URL HTTPS)`}><input className={input} type="url" maxLength={300} placeholder="https://…" value={d.profile?.socials?.[key] ?? ""} onChange={(e) => set({ profile: { ...d.profile, socials: { ...d.profile?.socials, [key]: e.target.value } } })} /></Field>)}</div>
+          <Field label="Versão de outro jogador"><select className={input} value={d.variantOf ?? ""} onChange={(e) => set({ variantOf: e.target.value || undefined })}><option value="">Carta principal / jogador independente</option>{players.filter((p) => p.id !== d.id && (!p.variantOf || p.variantOf === p.id)).map((p) => <option value={p.id} key={p.id}>{p.name} · {p.hero}</option>)}</select></Field>
+          <p className="text-xs text-zinc-500">Edite os dados do perfil na carta principal. O vínculo entre versões impede duplicatas nas escalações.</p>
+        </fieldset>
 
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className={primary} disabled={busy} onClick={save}>{busy ? "Salvando…" : "Salvar carta"}</button>

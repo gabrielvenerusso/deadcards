@@ -3,10 +3,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
 import { useData } from "../lib/data";
-import { formatDateBR, getPlayerHistory, getPlayerOvr, getPlayerTrend, isMainCard, teamOf } from "../lib/cards";
+import { getPlayerHistory, getPlayerOvr, getPlayerTrend, isMainCard, teamOf } from "../lib/cards";
 import { getCardTier } from "../lib/rarity";
 import { Card } from "./Card";
 import { TrendBadge } from "./TrendBadge";
+import { HistoryChart } from "./HistoryChart";
+import { ShareActions } from "./ShareActions";
+import { cardPath, profilePath } from "../lib/navigation";
+import { playerIdentity } from "../lib/lineups";
 
 gsap.registerPlugin(SplitText);
 const revealed = new Set<string>();
@@ -15,6 +19,7 @@ export function Spotlight({ playerId, onClose, onSwitch, onEdit }: { playerId: s
   const { teams, players, settings } = useData();
   const player = players.find((p) => p.id === playerId);
   const cardRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLSpanElement>(null);
   const tier = player ? getCardTier(player, settings.tierConfig!) : null;
@@ -47,17 +52,30 @@ export function Spotlight({ playerId, onClose, onSwitch, onEdit }: { playerId: s
   }, [reveal, playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "Tab") {
+        const nodes = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], select, [tabindex="0"]');
+        if (!nodes?.length) return;
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = overflow; previous?.focus(); };
   }, [onClose]);
 
   if (!player) return null;
   const team = teamOf(teams, player);
   if (!tier) return null;
   const history = getPlayerHistory(player);
-  const groupKey = player.variantOf || player.id;
-  const versions = players.filter((p) => p.id === groupKey || p.variantOf === groupKey);
+  const groupKey = playerIdentity(player, players);
+  const versions = players.filter((p) => playerIdentity(p, players) === groupKey);
 
   return (
     <motion.div
@@ -67,6 +85,8 @@ export function Spotlight({ playerId, onClose, onSwitch, onEdit }: { playerId: s
       exit={{ opacity: 0 }}
       onClick={onClose}
       role="dialog"
+      ref={dialogRef}
+      tabIndex={-1}
       aria-modal="true"
       aria-label={`Carta de ${player.name}`}
     >
@@ -78,7 +98,7 @@ export function Spotlight({ playerId, onClose, onSwitch, onEdit }: { playerId: s
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <motion.div key={player.id} className="relative" initial={reveal ? false : { rotateY: -90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} style={{ transformPerspective: 1200 }}>
+        <motion.div key={player.id} className="relative spotlight-card w-full max-w-[350px] shrink-0" initial={reveal ? false : { rotateY: -90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} style={{ transformPerspective: 1200 }}>
           {reveal && (
             <div ref={flashRef} aria-hidden="true" className="pointer-events-none absolute -inset-16 rounded-full opacity-0" style={{ background: `radial-gradient(circle, ${tier.hi} 0%, ${tier.c}99 30%, transparent 68%)` }} />
           )}
@@ -107,6 +127,8 @@ export function Spotlight({ playerId, onClose, onSwitch, onEdit }: { playerId: s
             <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-2">Histórico de OVR</h3>
             <HistoryChart points={history} color={tier.c} />
           </div>
+          <div className="flex flex-wrap gap-2"><a className="feature-button" href={profilePath(groupKey)}>Ver perfil do jogador ↗</a><a className="feature-button" href={`/comparar?a=${encodeURIComponent(player.id)}`}>Comparar jogador</a></div>
+          <ShareActions title={`${player.name} · OVR ${ovr}`} path={cardPath(player.id)} imageUrl={`/api/card-image/${encodeURIComponent(player.id)}`} />
 
           {versions.length > 1 && (
             <div>
@@ -128,26 +150,5 @@ export function Spotlight({ playerId, onClose, onSwitch, onEdit }: { playerId: s
         </div>
       </motion.div>
     </motion.div>
-  );
-}
-
-function HistoryChart({ points, color }: { points: { date: string; ovr: number }[]; color: string }) {
-  const W = 420, H = 140, P = 24;
-  const vals = points.map((p) => p.ovr);
-  const min = Math.min(...vals) - 2, max = Math.max(...vals) + 2;
-  const x = (i: number) => (points.length === 1 ? W / 2 : P + (i * (W - 2 * P)) / (points.length - 1));
-  const y = (v: number) => H - P - ((v - min) / Math.max(1, max - min)) * (H - 2 * P);
-  const d = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.ovr).toFixed(1)}`).join(" ");
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto rounded-xl bg-black/40 border border-zinc-200/10">
-      <motion.path d={d} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.9, ease: "easeOut" }} style={{ filter: `drop-shadow(0 0 6px ${color})` }} />
-      {points.map((p, i) => (
-        <g key={i}>
-          <circle cx={x(i)} cy={y(p.ovr)} r="4" fill="#09090b" stroke={color} strokeWidth="2" />
-          <text x={x(i)} y={y(p.ovr) - 9} textAnchor="middle" fontSize="11" fontWeight="800" fill="#f4f4f5">{p.ovr}</text>
-          <text x={x(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#a1a1aa">{formatDateBR(p.date).slice(0, 5)}</text>
-        </g>
-      ))}
-    </svg>
   );
 }

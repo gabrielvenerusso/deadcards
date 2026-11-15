@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/cards.css";
+@import "./styles/features.css";
 
 @font-face {
   font-family: 'VALVE Oracle';

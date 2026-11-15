@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useEffect } from "react";
 import { useData } from "../lib/data";
-import { TwitchIcon, signInWithGoogle, signInWithTwitch } from "../components/Account";
+import { TwitchIcon, signInWithGoogle, signInWithTwitch, loginReturn } from "../components/Account";
 
 export function SignInOptions() {
   return (
@@ -26,7 +26,7 @@ export function SignInOptions() {
 
 export function Login() {
   const { me } = useData();
-  useEffect(() => { if (me) location.replace("/"); }, [me]);
+  useEffect(() => { if (me) location.replace(loginReturn()); }, [me]);
   if (me) return null;
   return (
     <div className="min-h-dvh flex items-center justify-center p-4">

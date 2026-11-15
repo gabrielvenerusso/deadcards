@@ -1,5 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
 import { createAuth, currentUser } from "./auth";
+import { playerFromRow, readPlayers } from "./server/catalog";
+import { lineups } from "./server/lineups";
+import { validateProfile, validStats } from "./lib/profiles";
+import { getPlayerOvr } from "./lib/cards";
+import { playerIdentity } from "./lib/lineups";
+import { renderImage, sharePage } from "./server/sharing";
 
 export interface Env {
   DB: D1Database;
@@ -72,12 +78,7 @@ async function appData(env: Env): Promise<Response> {
       const tbg = parse<Record<string, unknown> | null>(t.bg_json, null);
       return { id: t.id, name: t.name, tag: t.tag, region: t.region, logo: imgUrl(t.logo_key), ...(tbg ? { bg: tbg } : {}) };
     }),
-    players: (players.results as Record<string, string | number | null>[]).map((p) => ({
-      ...parse(p.extra_json as string, {}),
-      id: p.id, teamId: p.team_id, name: p.name, position: p.position, hero: p.hero,
-      stats: parse(p.stats_json as string, {}), ...(p.ovr !== null ? { ovr: p.ovr } : {}),
-      c1: p.c1, c2: p.c2, history: parse(p.history_json as string, []),
-    })),
+    players: (players.results as Record<string, unknown>[]).map(playerFromRow),
     heroes: Object.fromEntries((heroes.results as { name: string; image_key: string; zoom: number; x: number; y: number }[])
       .map((h) => [h.name, { name: h.name, url: imgUrl(h.image_key), zoom: h.zoom, x: h.x, y: h.y }])),
     settings: {
@@ -113,18 +114,43 @@ async function upload(env: Env, request: Request, folder: string): Promise<Respo
 async function write(env: Env, request: Request, kind: string, id: string): Promise<Response> {
   const del = request.method === "DELETE";
   if (!del && request.method !== "PUT") return bad("método não suportado", 405);
-  const b = del ? {} : ((await request.json()) as Record<string, any>);
+  const b = del ? {} : ((await request.json().catch(() => null)) as Record<string, any> | null);
+  if (!b || typeof b !== "object" || Array.isArray(b)) return bad("JSON inválido");
   const db = env.DB;
   if (kind === "players") {
     if (del) await db.prepare("DELETE FROM players WHERE id = ?").bind(id).run();
     else {
-      if (!b.name || !b.teamId || !b.stats) return bad("jogador incompleto");
+      if (typeof b.name !== "string" || !b.name.trim() || b.name.length > 40 || typeof b.teamId !== "string" || !validStats(b.stats)) return bad("jogador incompleto ou atributos inválidos");
+      if (b.ovr != null && (!Number.isInteger(b.ovr) || b.ovr < 1 || b.ovr > 99)) return bad("OVR inválido");
+      const catalog = await readPlayers(env);
+      const previous = catalog.find((p) => p.id === id);
+      let profile;
+      try { profile = validateProfile(b.profile ?? previous?.profile ?? {}); } catch (e) { return bad((e as Error).message); }
+      if (b.variantOf && b.variantOf !== id) {
+        const main = catalog.find((p) => p.id === b.variantOf);
+        if (!main) return bad("carta principal não encontrada");
+        try {
+          if (playerIdentity(main, catalog) === id) return bad("vínculo circular entre versões");
+          b.variantOf = playerIdentity(main, catalog);
+        } catch (e) { return bad((e as Error).message); }
+      }
+      if (!Array.isArray(b.history) || b.history.length > 1000 || b.history.some((h: any) => !h || typeof h.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(h.date) || !Number.isInteger(h.ovr) || h.ovr < 1 || h.ovr > 99 || (h.stats !== undefined && !validStats(h.stats)))) return bad("histórico inválido");
+      const history = b.history.map((h: any) => ({ ...h }));
+      if (previous) {
+        const last = [...previous.history].sort((a, z) => a.date.localeCompare(z.date)).at(-1);
+        const retained = last && history.find((h: any) => h.date === last.date && h.ovr === getPlayerOvr(previous));
+        if (retained && !retained.stats && last.ovr === getPlayerOvr(previous)) retained.stats = previous.stats;
+      }
+      const latest = history.sort((a: any, z: any) => a.date.localeCompare(z.date)).at(-1);
+      if (latest) latest.stats = b.stats;
+      const updatedAt = new Date().toISOString();
+      profile.updatedAt = updatedAt;
       const extra = Object.fromEntries(PLAYER_EXTRA.filter((k) => b[k] !== undefined && b[k] !== null).map((k) => [k, b[k]]));
       await db.prepare(
-        "INSERT INTO players (id, team_id, name, position, hero, stats_json, ovr, c1, c2, history_json, extra_json) VALUES (?,?,?,?,?,?,?,?,?,?,?) " +
-        "ON CONFLICT(id) DO UPDATE SET team_id=excluded.team_id, name=excluded.name, position=excluded.position, hero=excluded.hero, stats_json=excluded.stats_json, ovr=excluded.ovr, c1=excluded.c1, c2=excluded.c2, history_json=excluded.history_json, extra_json=excluded.extra_json",
+        "INSERT INTO players (id, team_id, name, position, hero, stats_json, ovr, c1, c2, history_json, extra_json, profile_json, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) " +
+        "ON CONFLICT(id) DO UPDATE SET team_id=excluded.team_id, name=excluded.name, position=excluded.position, hero=excluded.hero, stats_json=excluded.stats_json, ovr=excluded.ovr, c1=excluded.c1, c2=excluded.c2, history_json=excluded.history_json, extra_json=excluded.extra_json, profile_json=excluded.profile_json, updated_at=excluded.updated_at",
       ).bind(id, b.teamId, b.name, b.position ?? "Flex", b.hero ?? "Abrams", JSON.stringify(b.stats), Number.isFinite(b.ovr) ? Math.round(b.ovr) : null,
-        b.c1 ?? "#0e7490", b.c2 ?? "#082f49", JSON.stringify(b.history ?? []), JSON.stringify(extra)).run();
+        b.c1 ?? "#0e7490", b.c2 ?? "#082f49", JSON.stringify(history), JSON.stringify(extra), JSON.stringify(profile), updatedAt).run();
     }
   } else if (kind === "teams") {
     if (del) await db.batch([db.prepare("DELETE FROM players WHERE team_id = ?").bind(id), db.prepare("DELETE FROM teams WHERE id = ?").bind(id)]);
@@ -216,8 +242,21 @@ async function codes(env: Env, request: Request, rest: string): Promise<Response
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const image = url.pathname.match(/^\/api\/card-image\/([\w-]+)$/);
+    if (image || url.pathname === "/api/lineup-image") {
+      if (request.method !== "GET") return bad("método não suportado", 405);
+      try { return await renderImage(request, env, image?.[1]); }
+      catch (error) { console.error("Image export failed", error); return bad("Não foi possível gerar a imagem. Tente novamente.", 503); }
+    }
+    const shared = url.pathname.match(/^\/(carta|jogador|escalacao)\/([\w-]+)$/);
+    if (shared && (request.method === "GET" || request.method === "HEAD")) return sharePage(request, env, shared[1], shared[2]);
     if (url.pathname.startsWith("/api/auth/")) return createAuth(env, request).handler(request);
     if (url.pathname === "/api/me") return Response.json(await currentUser(env, request));
+    const lineup = url.pathname.match(/^\/api\/lineups(?:\/([\w-]+))?$/);
+    if (lineup) {
+      try { return await lineups(request, env, await currentUser(env, request), lineup[1]); }
+      catch { return bad("Não foi possível acessar as escalações. Tente novamente.", 500); }
+    }
     if (url.pathname === "/api/codes" || url.pathname.startsWith("/api/codes/")) {
       if (!(await currentUser(env, request))?.admin) return bad("sem permissão", 403);
       return codes(env, request, url.pathname.slice("/api/codes/".length));

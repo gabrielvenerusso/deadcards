@@ -5,8 +5,12 @@ import { useData } from "../lib/data";
 
 const auth = createAuthClient();
 
-export const signInWithTwitch = () => auth.signIn.social({ provider: "twitch", callbackURL: "/" });
-export const signInWithGoogle = () => auth.signIn.social({ provider: "google", callbackURL: "/" });
+export function loginReturn() {
+  const next = new URLSearchParams(location.search).get("next");
+  return next && /^\/(montar-time|escalacao\/[\w-]+)$/.test(next) ? next : "/";
+}
+export const signInWithTwitch = () => auth.signIn.social({ provider: "twitch", callbackURL: loginReturn() });
+export const signInWithGoogle = () => auth.signIn.social({ provider: "google", callbackURL: loginReturn() });
 
 export function TwitchIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (

@@ -1,5 +1,5 @@
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DataProvider, useData } from "./lib/data";
 import { hexToRgba } from "./lib/cards";
 import { Home } from "./views/Home";
@@ -12,6 +12,10 @@ import { Login } from "./views/Login";
 import { Account } from "./components/Account";
 import { Editor } from "./views/Editor";
 import { Legal } from "./views/Legal";
+import { Compare } from "./views/Compare";
+import { LineupBuilder } from "./views/LineupBuilder";
+import { PlayerProfile } from "./views/PlayerProfile";
+import { cardPath, navigate, useLocation } from "./lib/navigation";
 
 const REPO = "https://github.com/hagizao/deadcards";
 
@@ -23,19 +27,23 @@ function GitHubIcon() {
   );
 }
 
-type Tab = "home" | "teams" | "tierlist" | "collection" | "redeem" | "editor" | "privacy" | "terms";
-const TABS: { id: Exclude<Tab, "home" | "privacy" | "terms">; label: string }[] = [
+type Tab = "home" | "teams" | "tierlist" | "collection" | "redeem" | "editor" | "privacy" | "terms" | "compare" | "lineup" | "profile";
+const PATHS: Record<Tab, string> = { home: "/", teams: "/times", tierlist: "/tier-list", collection: "/colecao", redeem: "/resgatar", editor: "/editor", privacy: "/privacidade", terms: "/termos", compare: "/comparar", lineup: "/montar-time", profile: "/jogador" };
+const TABS: { id: Exclude<Tab, "home" | "privacy" | "terms" | "profile">; label: string }[] = [
   { id: "teams", label: "Times" },
   { id: "tierlist", label: "Tier List" },
   { id: "collection", label: "Coleção" },
+  { id: "compare", label: "Comparar" },
+  { id: "lineup", label: "Montar Time" },
   { id: "redeem", label: "Resgatar" },
 ];
 
 export default function App() {
+  const route = useLocation();
   return (
     <MotionConfig reducedMotion="user">
       <DataProvider>
-        {location.pathname === "/login" ? <><Background /><Login /></> : <Shell />}
+        {route.split("?")[0] === "/login" ? <><Background /><Login /></> : <Shell />}
       </DataProvider>
     </MotionConfig>
   );
@@ -60,11 +68,24 @@ function Background() {
 }
 
 function Shell() {
-  const [tab, setTab] = useState<Tab>("home");
+  const route = useLocation();
+  const pathname = route.split("?")[0];
+  const segment = pathname.split("/")[2];
+  const tab: Tab = pathname.startsWith("/jogador/") ? "profile" : pathname.startsWith("/escalacao/") ? "lineup" : pathname.startsWith("/carta/") ? "collection" : (Object.keys(PATHS) as Tab[]).find((key) => PATHS[key] === pathname) ?? "home";
+  const setTab = (next: Tab) => navigate(PATHS[next]);
   const [focusTeam, setFocusTeam] = useState<string>();
-  const [spotlight, setSpotlight] = useState<string | null>(null);
+  const spotlight = pathname.startsWith("/carta/") ? segment : null;
+  const [cardReturn, setCardReturn] = useState("/colecao");
+  const setSpotlight = (id: string | null) => {
+    if (id) { if (!spotlight) setCardReturn(route); navigate(cardPath(id)); }
+    else navigate(cardReturn);
+  };
   const [editId, setEditId] = useState<string | null>(null);
-  const { me } = useData();
+  const { me, players } = useData();
+  useEffect(() => {
+    const selected = players.find((p) => p.id === segment);
+    document.title = selected && (spotlight || tab === "profile") ? `${selected.name} · Deadlock Cards` : `${tab === "compare" ? "Comparar" : tab === "lineup" ? "Montar Time" : "Deadlock Cards"} · Deadlock Cards`;
+  }, [segment, spotlight, tab, players]);
   const tabs = me?.admin ? [...TABS, { id: "editor" as const, label: "Editor" }] : TABS;
   const openTeam = (id: string) => { setFocusTeam(id); setTab("teams"); };
   const editCard = (id: string) => { setSpotlight(null); setEditId(id); setTab("editor"); };
@@ -99,7 +120,12 @@ function Shell() {
       </header>
 
       <ReducedMotionNotice />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10" onClick={(e) => {
+        const anchor = (e.target as HTMLElement).closest("a");
+        if (!anchor || anchor.target || anchor.hasAttribute("download") || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        const url = new URL(anchor.href);
+        if (url.origin === location.origin && url.pathname !== "/login") { e.preventDefault(); navigate(url.pathname + url.search); }
+      }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={tab}
@@ -113,6 +139,10 @@ function Shell() {
             {tab === "tierlist" && <TierList onOpenCard={setSpotlight} onOpenTeam={openTeam} />}
             {tab === "collection" && <Collection onOpenCard={setSpotlight} />}
             {tab === "redeem" && <Redeem onOpenCard={setSpotlight} />}
+            {tab === "compare" && <Compare onOpenCard={setSpotlight} />}
+            {tab === "lineup" && <LineupBuilder id={pathname.startsWith("/escalacao/") ? segment : undefined} />}
+            {tab === "profile" && <PlayerProfile id={segment ?? ""} onOpenCard={setSpotlight} />}
+            {spotlight && !players.some((p) => p.id === spotlight) && <p role="alert" className="feature-panel">Carta não encontrada. Escolha outra carta no catálogo.</p>}
             {tab === "editor" && me?.admin && <Editor editId={editId} onEditId={setEditId} />}
             {(tab === "privacy" || tab === "terms") && <Legal page={tab} />}
           </motion.div>
