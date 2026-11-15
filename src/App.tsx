@@ -1,5 +1,5 @@
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { DataProvider, useData } from "./lib/data";
 import { hexToRgba } from "./lib/cards";
 import { Home } from "./views/Home";
@@ -18,12 +18,13 @@ import { PlayerProfile } from "./views/PlayerProfile";
 import { cardPath, navigate, useLocation } from "./lib/navigation";
 import { LANGS, LANG_LABEL, LangProvider, strings, useLang, useT, type Lang } from "./lib/i18n";
 import { Feedback } from "./views/Feedback";
+import { Icon } from "./components/Icon";
 
 const REPO = "https://github.com/hagizao/deadcards";
 
 function GitHubIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor" className="size-4" aria-hidden="true">
       <path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3" />
     </svg>
   );
@@ -87,19 +88,128 @@ const S = strings({
   },
 });
 
-// Select nativo: teclado, leitor de tela e menu de celular de graça. A cor do texto vem do tema escuro.
-function LangSelect({ className = "" }: { className?: string }) {
+// Bandeiras simplificadas (viewBox 3:2) para ler bem a ~20x14 px.
+const FLAGS: Record<Lang, (clip: string) => React.ReactNode> = {
+  pt: () => (
+    <>
+      <rect width="60" height="40" fill="#009b3a" />
+      <path d="M30 4 56 20 30 36 4 20z" fill="#fedf00" />
+      <circle cx="30" cy="20" r="9" fill="#002776" />
+      <path d="M21.5 19q8.5-3 17 3" stroke="#fff" strokeWidth="2" fill="none" />
+    </>
+  ),
+  en: (clip) => (
+    <>
+      <clipPath id={clip}><path d="M30 20h30v20zv20H0zH0V0zV0h30z" /></clipPath>
+      <rect width="60" height="40" fill="#012169" />
+      <path d="M0 0 60 40M60 0 0 40" stroke="#fff" strokeWidth="8" />
+      <path d="M0 0 60 40M60 0 0 40" stroke="#c8102e" strokeWidth="4" clipPath={`url(#${clip})`} />
+      <path d="M30 0v40M0 20h60" stroke="#fff" strokeWidth="12" />
+      <path d="M30 0v40M0 20h60" stroke="#c8102e" strokeWidth="7" />
+    </>
+  ),
+  es: () => (
+    <>
+      <rect width="60" height="40" fill="#aa151b" />
+      <rect y="10" width="60" height="20" fill="#f1bf00" />
+    </>
+  ),
+};
+
+function Flag({ lang }: { lang: Lang }) {
+  const clip = useId().replace(/:/g, "");
+  return (
+    <span className="inline-flex shrink-0 overflow-hidden rounded-sm ring-1 ring-zinc-200/20">
+      <svg viewBox="0 0 60 40" className="block aspect-3/2 w-5" aria-hidden="true">{FLAGS[lang](clip)}</svg>
+    </span>
+  );
+}
+
+function LangMenu() {
   const t = useT(S);
   const { lang, setLang } = useLang();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const items = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    items.current[LANGS.indexOf(lang)]?.focus();
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent) {
+        if (e.key === "Escape") { setOpen(false); button.current?.focus(); }
+        else if (e.key === "Tab") setOpen(false);
+      } else if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", close);
+    return () => { window.removeEventListener("mousedown", close); window.removeEventListener("keydown", close); };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const move = (e: React.KeyboardEvent, i: number) => {
+    const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    items.current[(i + d + LANGS.length) % LANGS.length]?.focus();
+  };
+
   return (
-    <select
-      aria-label={t.language}
-      value={lang}
-      onChange={(e) => setLang(e.target.value as Lang)}
-      className={`rounded-xl border border-zinc-200/15 bg-zinc-900/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:text-white cursor-pointer ${className}`}
-    >
-      {LANGS.map((l) => <option key={l} value={l} className="bg-zinc-900 normal-case">{LANG_LABEL[l]}</option>)}
-    </select>
+    <div ref={ref} className="relative shrink-0">
+      <motion.button
+        ref={button}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        whileTap={{ scale: 0.95 }}
+        aria-label={t.language}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-black/50 bg-linear-to-b from-dl-bevel-from to-dl-bevel-to px-3 text-xs font-bold tracking-widest text-white uppercase text-shadow-xs hover:from-dl-bevel-hover-from hover:to-dl-bevel-hover-to focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-100 sm:min-h-10 sm:text-sm"
+      >
+        <Flag lang={lang} />
+        <span className="hidden sm:inline">{lang}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`hidden size-3 transition-transform duration-150 sm:block ${open ? "rotate-180" : ""}`} aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </motion.button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            aria-label={t.language}
+            initial={{ opacity: 0, y: -6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className="noir-glass-strong absolute right-0 z-50 mt-2 w-40 origin-top-right rounded-2xl p-2"
+          >
+            {LANGS.map((l, i) => (
+              <button
+                key={l}
+                ref={(el) => { items.current[i] = el; }}
+                type="button"
+                role="menuitemradio"
+                aria-checked={l === lang}
+                tabIndex={l === lang ? 0 : -1}
+                onKeyDown={(e) => move(e, i)}
+                onClick={() => { setLang(l); setOpen(false); button.current?.focus(); }}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg p-2 text-left text-sm hover:bg-zinc-800/70 hover:text-white focus-visible:bg-zinc-800/70 focus-visible:text-white ${l === lang ? "font-bold text-white" : "text-zinc-300"}`}
+              >
+                <span className="flex items-center gap-2">
+                  <Flag lang={l} />
+                  {LANG_LABEL[l]}
+                </span>
+                {l === lang && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0" aria-hidden="true">
+                    <path d="m5 12 5 5L20 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -121,7 +231,7 @@ function Background() {
   const bg = settings.bg;
   if (!bg) return null;
   return (
-    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
       {bg.imageUrl && (
         <div
           className="absolute -inset-6 bg-center bg-no-repeat"
@@ -157,33 +267,34 @@ function Shell() {
   const tabs = me?.admin ? [...TABS, "editor" as const] : TABS;
   const openTeam = (id: string) => { setFocusTeam(id); setTab("teams"); };
   const editCard = (id: string) => { setSpotlight(null); setEditId(id); setTab("editor"); };
+  useEffect(() => { window.scrollTo(0, 0); }, [tab]);
 
   return (
     <>
       <Background />
-      <header className="sticky top-0 z-40 noir-glass border-b border-zinc-200/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => setTab("home")} className="brand-badge shrink-0 px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl flex items-center gap-3 text-left">
-            <span className="w-2.5 h-2.5 rounded-full bg-zinc-100 shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
-            <span className="text-base sm:text-xl font-extrabold uppercase tracking-[0.18em] text-zinc-100"><span className="sm:hidden">DC</span><span className="hidden sm:inline">Deadlock Cards</span></span>
+      <header className="noir-glass sticky top-0 z-40 border-b border-zinc-200/15">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
+          <button type="button" onClick={() => setTab("home")} className="brand-badge flex shrink-0 items-center gap-3 rounded-xl px-4 py-2.5 text-left sm:px-6 sm:py-3">
+            <span className="size-2.5 rounded-full bg-zinc-100 shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
+            <span className="font-display text-base font-extrabold tracking-[0.18em] text-zinc-100 uppercase sm:text-xl"><span className="sm:hidden">DC</span><span className="hidden sm:inline">Deadlock Cards</span></span>
           </button>
-          <nav className="relative ml-auto min-w-0 flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto [scrollbar-width:none] py-1" aria-label={t.mainNav}>
+          <nav className="relative ml-auto flex min-w-0 scrollbar-none items-center gap-2 overflow-x-auto mask-x-from-[calc(100%-1.5rem)] px-6 py-1" aria-label={t.mainNav}>
             {tabs.map((id) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => { setFocusTeam(undefined); setTab(id); }}
+                onClick={(e) => { setFocusTeam(undefined); setTab(id); e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" }); }}
                 aria-current={tab === id ? "page" : undefined}
-                className={`relative shrink-0 whitespace-nowrap px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold tracking-wider uppercase cursor-pointer border transition-colors ${
-                  tab === id ? "text-zinc-950 border-white" : "text-zinc-300 hover:text-white border-zinc-200/15 bg-zinc-900/60"
+                className={`relative flex min-h-11 shrink-0 cursor-pointer items-center rounded-lg border px-3 text-xs font-bold tracking-widest whitespace-nowrap uppercase focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-zinc-100 sm:min-h-10 sm:px-4 sm:text-sm ${
+                  tab === id ? "border-dl-text text-dl-black" : "border-black/50 bg-linear-to-b from-dl-bevel-from to-dl-bevel-to text-white text-shadow-xs hover:from-dl-bevel-hover-from hover:to-dl-bevel-hover-to"
                 }`}
               >
-                {tab === id && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-xl bg-zinc-100 shadow-[0_0_18px_rgba(244,244,245,0.35)]" transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
+                {tab === id && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-lg bg-dl-text shadow-[0_0_18px_rgba(255,239,215,0.35)]" transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
                 <span className="relative">{t.tabs[id]}</span>
               </button>
             ))}
           </nav>
-          <LangSelect className="hidden xl:block shrink-0" />
+          <LangMenu />
           <div className="shrink-0"><Account /></div>
         </div>
       </header>
@@ -219,20 +330,19 @@ function Shell() {
         </AnimatePresence>
       </main>
 
-      <footer className="border-t border-zinc-200/10 mt-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
-          <a href={REPO} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-bold uppercase tracking-wider text-zinc-300 hover:text-white">
+      <footer className="mt-6 border-t border-zinc-200/10">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-zinc-400 sm:px-6 lg:px-8">
+          <a href={REPO} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-bold tracking-wider text-zinc-300 uppercase hover:text-white">
             <GitHubIcon /> {t.github}
           </a>
           <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label={t.projectLinks}>
-            <button type="button" onClick={() => setTab("feedback")} className="hover:text-white cursor-pointer">{t.feedback}</button>
+            <button type="button" onClick={() => setTab("feedback")} className="cursor-pointer hover:text-white">{t.feedback}</button>
             <a href={`${REPO}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer" className="hover:text-white">{t.contribute}</a>
-            <button type="button" onClick={() => setTab("privacy")} className="hover:text-white cursor-pointer">{t.privacy}</button>
-            <button type="button" onClick={() => setTab("terms")} className="hover:text-white cursor-pointer">{t.terms}</button>
+            <button type="button" onClick={() => setTab("privacy")} className="cursor-pointer hover:text-white">{t.privacy}</button>
+            <button type="button" onClick={() => setTab("terms")} className="cursor-pointer hover:text-white">{t.terms}</button>
           </nav>
-          <LangSelect className="xl:hidden" />
         </div>
-        <p className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 text-xs text-zinc-500">
+        <p className="mx-auto max-w-7xl px-4 pb-6 text-xs text-zinc-500 sm:px-6 lg:px-8">
           {t.managed}{" "}
           <a href="https://www.youtube.com/@hagizao" target="_blank" rel="noreferrer" className="text-zinc-300 hover:text-white">YouTube</a> ·{" "}
           <a href="https://www.twitch.tv/hagizao" target="_blank" rel="noreferrer" className="text-zinc-300 hover:text-white">Twitch</a> ·{" "}
@@ -255,10 +365,10 @@ function ReducedMotionNotice() {
   if (!reduced || hidden) return null;
   const close = () => { setHidden(true); try { localStorage.setItem("rm-notice", "1"); } catch { /* sem storage */ } };
   return (
-    <div role="status" className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+    <div role="status" className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
       <div className="flex items-start gap-3 rounded-xl border border-zinc-200/15 bg-zinc-900/80 px-4 py-3 text-xs text-zinc-300">
         <p className="flex-1">{t.rmBefore}<strong>{t.rmBold}</strong>{t.rmAfter}</p>
-        <button type="button" onClick={close} aria-label={t.rmClose} className="shrink-0 text-zinc-400 hover:text-white cursor-pointer">✕</button>
+        <button type="button" onClick={close} aria-label={t.rmClose} className="shrink-0 cursor-pointer text-zinc-400 hover:text-white"><Icon name="x" /></button>
       </div>
     </div>
   );

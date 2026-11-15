@@ -17,16 +17,16 @@ export function SignInOptions() {
       <button
         type="button"
         onClick={signInWithTwitch}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold uppercase tracking-wider text-sm text-white bg-[#9146ff] hover:bg-[#a970ff] shadow-[0_0_24px_rgba(145,70,255,0.45)] transition cursor-pointer"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#9146ff] py-3 text-sm font-bold tracking-wider text-white uppercase shadow-[0_0_24px_rgba(145,70,255,0.45)] transition-colors hover:bg-[#a970ff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-100"
       >
         <TwitchIcon /> {t.twitch}
       </button>
       <button
         type="button"
         onClick={signInWithGoogle}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold uppercase tracking-wider text-sm text-zinc-900 bg-white hover:bg-zinc-200 shadow-[0_0_24px_rgba(255,255,255,0.2)] transition cursor-pointer"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-bold tracking-wider text-zinc-900 uppercase shadow-[0_0_24px_rgba(255,255,255,0.2)] transition-colors hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-100"
       >
-        <span className="font-black text-base leading-none" aria-hidden="true">G</span> {t.google}
+        <span className="text-base leading-none font-black" aria-hidden="true">G</span> {t.google}
       </button>
     </div>
   );
@@ -37,14 +37,14 @@ export function Login() {
   useEffect(() => { if (me) location.replace(loginReturn()); }, [me]);
   if (me) return null;
   return (
-    <div className="min-h-dvh flex items-center justify-center p-4">
+    <div className="flex min-h-dvh items-center justify-center p-4">
       <motion.div
-        className="noir-glass-strong rounded-3xl p-8 w-full max-w-sm text-center space-y-6"
+        className="noir-glass-strong w-full max-w-sm space-y-6 rounded-3xl p-8 text-center"
         initial={{ opacity: 0, y: 24, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 240, damping: 22 }}
       >
-        <h1 className="text-xl font-extrabold uppercase tracking-[0.18em] text-zinc-100">Deadlock Cards</h1>
+        <h1 className="font-display text-xl font-extrabold tracking-[0.18em] text-zinc-100 uppercase">Deadlock Cards</h1>
         <SignInOptions />
       </motion.div>
     </div>

@@ -3,6 +3,7 @@ import { createAuthClient } from "better-auth/client";
 import { useEffect, useRef, useState } from "react";
 import { useData } from "../lib/data";
 import { strings, useT } from "../lib/i18n";
+import { primaryBtn } from "../lib/ui";
 
 const auth = createAuthClient();
 
@@ -49,7 +50,7 @@ export function Account() {
         href="/login"
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.96 }}
-        className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-950 bg-zinc-100 hover:bg-white shadow-[0_0_18px_rgba(244,244,245,0.35)] cursor-pointer"
+        className={`${primaryBtn} shadow-[0_0_18px_rgba(255,239,215,0.35)] sm:min-h-10`}
         aria-label={t.signIn}
       >
         <span>{t.signIn}</span>
@@ -65,10 +66,10 @@ export function Account() {
         whileTap={{ scale: 0.95 }}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-2 p-1 sm:pr-3 rounded-full border border-zinc-200/25 bg-zinc-900/70 hover:border-zinc-200/60 shadow-[0_0_14px_rgba(244,244,245,0.15)] cursor-pointer"
+        className="flex cursor-pointer items-center gap-2 rounded-full border border-zinc-200/25 bg-zinc-900/70 p-1 shadow-[0_0_14px_rgba(244,244,245,0.15)] hover:border-zinc-200/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-100 sm:pr-3"
       >
-        {me.image ? <img src={me.image} alt="" className="w-8 h-8 rounded-full" /> : <span className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold text-white">{me.name.charAt(0).toUpperCase()}</span>}
-        <span className="hidden sm:inline text-sm font-bold text-zinc-100 max-w-32 truncate">{me.name}</span>
+        {me.image ? <img src={me.image} alt="" className="size-8 rounded-full" /> : <span className="flex size-8 items-center justify-center rounded-full bg-zinc-700 text-sm font-bold text-white">{me.name.charAt(0).toUpperCase()}</span>}
+        <span className="hidden max-w-32 truncate text-sm font-bold text-zinc-100 sm:inline">{me.name}</span>
       </motion.button>
       <AnimatePresence>
         {open && (
@@ -78,16 +79,16 @@ export function Account() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-52 origin-top-right noir-glass-strong rounded-2xl p-2 z-50"
+            className="noir-glass-strong absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-2xl p-2"
           >
-            <div className="flex items-center gap-2 px-2 py-2 border-b border-zinc-200/10 mb-1">
-              <span className="text-sm font-bold text-zinc-100 truncate">{me.name}</span>
+            <div className="mb-1 flex items-center gap-2 border-b border-zinc-200/10 p-2">
+              <span className="truncate text-sm font-bold text-zinc-100">{me.name}</span>
             </div>
             <button
               type="button"
               role="menuitem"
               onClick={() => auth.signOut().then(() => location.assign("/"))}
-              className="w-full text-left px-2 py-2 rounded-lg text-sm text-zinc-300 hover:text-white hover:bg-zinc-800/70 cursor-pointer"
+              className="w-full cursor-pointer rounded-lg p-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/70 hover:text-white"
             >
               {t.signOut}
             </button>

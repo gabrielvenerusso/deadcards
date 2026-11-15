@@ -1,13 +1,16 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
+import type { Team } from "../lib/types";
 import { useData } from "../lib/data";
 import { regionClass, teamOvr, teamTrend, tierKeyForOvr } from "../lib/cards";
 import { strings, useT, useLabel } from "../lib/i18n";
 import { RegionBackdrop } from "../components/RegionBackdrop";
-import { TeamLogo } from "../components/TeamLogo";
+import { TeamLogo3D } from "../components/TeamLogo3D";
+import { usePointerTilt } from "../lib/tilt";
+import { Icon } from "../components/Icon";
 
 const S = strings({
-  pt: { featured: "Herói em destaque", prev: "Herói anterior", next: "Próximo herói", none: "Nenhum time cadastrado ainda.", players: (n: number) => `${n} jogador(es)` },
+  pt: { featured: "Herói em destaque", prev: "Herói anterior", next: "Próximo herói", none: "Nenhum time cadastrado ainda.", players: (n: number) => `${n} ${n === 1 ? "jogador" : "jogadores"}` },
   en: { featured: "Featured hero", prev: "Previous hero", next: "Next hero", none: "No teams registered yet.", players: (n: number) => `${n} ${n === 1 ? "player" : "players"}` },
   es: { featured: "Héroe destacado", prev: "Héroe anterior", next: "Siguiente héroe", none: "Aún no hay equipos registrados.", players: (n: number) => `${n} ${n === 1 ? "jugador" : "jugadores"}` },
 });
@@ -34,8 +37,8 @@ export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
     .sort((a, b) => b.exact - a.exact || a.team.name.localeCompare(b.team.name));
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-      <div className="home-col home-hero-box noir-glass rounded-2xl overflow-hidden relative">
+    <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-8">
+      <div className="home-col home-hero-box noir-glass relative overflow-hidden rounded-2xl">
         <AnimatePresence initial={false} custom={dir}>
           {homeImg && (
             <motion.img
@@ -53,63 +56,80 @@ export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
               animate="center"
               exit="exit"
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-0 w-full h-full object-cover object-center select-none"
+              className="absolute inset-0 size-full object-cover object-center select-none"
             />
           )}
         </AnimatePresence>
-        <div className="absolute inset-x-0 bottom-0 h-1/3 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(9,9,11,0.55), transparent)" }} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3" style={{ background: "linear-gradient(to top, rgba(9,9,11,0.55), transparent)" }} />
         {slides.length > 1 && (
           <>
             <button type="button" className="home-hero-arrow home-hero-arrow--l" onClick={() => step(-1)} aria-label={t.prev}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
             </button>
             <button type="button" className="home-hero-arrow home-hero-arrow--r" onClick={() => step(1)} aria-label={t.next}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
         )}
         {hero && <div className="home-hero-tag">{hero}</div>}
       </div>
 
-      <div className="home-col home-teams-scroll flex flex-col gap-3.5" style={{ "--ft": "0px", "--fb": "120px" } as React.CSSProperties}>
+      <div className="home-col home-teams-scroll flex flex-col gap-4" style={{ "--ft": "0px", "--fb": "120px" } as React.CSSProperties}>
         {ranked.length === 0 && <div className="noir-glass rounded-2xl p-6 text-sm text-zinc-300">{t.none}</div>}
-        {ranked.map((r, idx) => {
-          const tier = r.count ? settings.tierConfig!.find((t) => t.key === tierKeyForOvr(r.rounded, settings.tierConfig!)) : undefined;
-          return (
-            <motion.button
-              key={r.team.id}
-              type="button"
-              onClick={() => onOpenTeam(r.team.id)}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -2 }}
-              className={`home-team-box noir-glass team-region-card ${regionClass(r.team.region)} relative overflow-hidden rounded-2xl px-4 sm:px-5 flex items-center gap-3.5 sm:gap-5 cursor-pointer text-left hover:border-white`}
-            >
-              <RegionBackdrop region={r.team.region} />
-              <span className="relative z-10 w-9 shrink-0 text-center text-xl sm:text-2xl font-black text-zinc-300">#{idx + 1}</span>
-              <div className="team-logo-frame relative z-10 w-14 h-14 sm:w-16 sm:h-16"><TeamLogo team={r.team} /></div>
-              <div className="relative z-10 min-w-0 flex-1">
-                <div className="text-lg sm:text-2xl font-extrabold uppercase tracking-wider text-zinc-100 truncate leading-tight">{r.team.name}</div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
-                  <span>{r.team.tag}</span><span className="text-zinc-500">•</span><span>{label(r.team.region)}</span><span className="text-zinc-500">•</span><span>{t.players(r.count)}</span>
-                </div>
-              </div>
-              <div className="relative z-10 shrink-0 flex flex-col items-center gap-1">
-                <div className="team-ovr-chip team-ovr-chip--stack">
-                  <span className="team-ovr-num">{r.count ? r.rounded : "--"}</span>
-                  <span className="team-ovr-lbl">OVR</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {tier && <span className="px-2 py-0.5 rounded-md text-[11px] font-black border border-black/25" style={{ background: tier.bg, color: tier.text }}>{tier.key}</span>}
-                  {r.delta > 0 && <span className="text-[11px] font-extrabold text-emerald-300">▲ +{r.delta}</span>}
-                  {r.delta < 0 && <span className="text-[11px] font-extrabold text-red-300">▼ {r.delta}</span>}
-                </div>
-              </div>
-            </motion.button>
-          );
-        })}
+        {ranked.map((r, idx) => (
+          <TeamRow
+            key={r.team.id}
+            r={r}
+            idx={idx}
+            tier={r.count ? settings.tierConfig!.find((t) => t.key === tierKeyForOvr(r.rounded, settings.tierConfig!)) : undefined}
+            meta={`${r.team.tag} · ${label(r.team.region)} · ${t.players(r.count)}`}
+            onOpen={() => onOpenTeam(r.team.id)}
+          />
+        ))}
       </div>
     </section>
+  );
+}
+
+function TeamRow({ r, idx, tier, meta, onOpen }: {
+  r: { team: Team; rounded: number; count: number; delta: number };
+  idx: number;
+  tier?: { key: string; bg: string; text: string };
+  meta: string;
+  onOpen: () => void;
+}) {
+  const { rotateX, rotateY, ...tiltHandlers } = usePointerTilt();
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onOpen}
+      {...tiltHandlers}
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: idx * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      whileHover="hover"
+      variants={{ hover: { y: -2 } }}
+      className={`home-team-box noir-glass team-region-card ${regionClass(r.team.region)} relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl p-4 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-zinc-100 sm:gap-5 sm:px-5`}
+    >
+      <RegionBackdrop region={r.team.region} />
+      <span className="relative z-10 w-9 shrink-0 text-center text-xl font-black text-zinc-300 tabular-nums sm:text-2xl">#{idx + 1}</span>
+      <TeamLogo3D team={r.team} className="size-14 sm:size-16" radius={12} tilt={{ rotateX, rotateY }} />
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="line-clamp-2 font-display text-base/tight font-extrabold tracking-wider text-balance text-dl-text uppercase sm:text-xl/tight">{r.team.name}</div>
+        <div className="mt-1 text-[11px] font-bold tracking-wider text-zinc-300 uppercase">{meta}</div>
+      </div>
+      <div className="relative z-10 flex shrink-0 flex-col items-center gap-1">
+        <div className="team-ovr-chip team-ovr-chip--stack">
+          <span className="team-ovr-num">{r.count ? r.rounded : "--"}</span>
+          <span className="team-ovr-lbl">OVR</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {tier && <span className="rounded-md border border-black/25 px-2 py-0.5 text-xs font-black" style={{ background: tier.bg, color: tier.text }}>{tier.key}</span>}
+          {r.delta > 0 && <span className="flex items-center gap-0.5 text-xs font-extrabold text-emerald-300 tabular-nums"><Icon name="arrow-up" className="size-3" />+{r.delta}</span>}
+          {r.delta < 0 && <span className="flex items-center gap-0.5 text-xs font-extrabold text-red-300 tabular-nums"><Icon name="arrow-down" className="size-3" />{r.delta}</span>}
+        </div>
+      </div>
+    </motion.button>
   );
 }

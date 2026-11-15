@@ -83,8 +83,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
   }, [data, apiHeroes, me]);
 
-  if (error) return <div className="min-h-dvh flex items-center justify-center text-red-300 text-sm">{t.loadFail}: {error}</div>;
-  if (!value) return <div className="min-h-dvh flex items-center justify-center text-zinc-400 text-xs uppercase tracking-[0.3em]">{t.loading}</div>;
+  if (error) return <div className="flex min-h-dvh items-center justify-center text-sm text-red-300">{t.loadFail}: {error}</div>;
+  if (!value) return <div className="flex min-h-dvh items-center justify-center text-xs tracking-[0.3em] text-zinc-400 uppercase">{t.loading}</div>;
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 

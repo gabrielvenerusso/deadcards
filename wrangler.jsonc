@@ -27,6 +27,6 @@
   },
   "vars": {
     "DEADLOCK_API_BASE": "https://api.deadlock-api.com",
-    "ADMINS": "admvicli,hagizao,enzxberto"
+    "ADMINS": "admvicli,hagizao,enzxberto,skadush_"
   }
 }

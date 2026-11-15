@@ -1,36 +1,36 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useData } from "../lib/data";
 import { activeRoster, REGIONS, regionClass, teamOvr, teamTrend } from "../lib/cards";
 import { strings, useT, useLabel } from "../lib/i18n";
 import { RegionBackdrop } from "../components/RegionBackdrop";
-import { TeamLogo } from "../components/TeamLogo";
+import { TeamLogo3D } from "../components/TeamLogo3D";
+import { usePointerTilt } from "../lib/tilt";
+import type { Team } from "../lib/types";
 import { TrendBadge } from "../components/TrendBadge";
 import { Card } from "../components/Card";
 
-const pill = (active: boolean) =>
-  `px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer border ${
-    active ? "bg-zinc-100 text-zinc-950 border-white shadow-[0_0_12px_rgba(244,244,245,0.2)]" : "bg-zinc-900/75 text-zinc-300 border-zinc-200/15 hover:text-white hover:border-zinc-200/40"
-  }`;
+import { Icon } from "../components/Icon";
+import { pageTitle, pill } from "../lib/ui";
 
 const S = strings({
   pt: {
-    title: "Elencos & Cartas", hint: "Clique no nome ou logo de um time para abrir seu elenco. Passe o mouse sobre uma carta para visualizar.",
-    desc: "↓ OVR Decrescente", asc: "↑ OVR Crescente", collapseAll: "▴ Recolher Todos", showAll: "▾ Exibir Todos",
-    medium: "Cartas Médias", large: "Cartas Grandes", all: (n: number) => `Todas (${n})`, noTeams: "Nenhum time nesta região",
-    collapse: "▴ Recolher", open: "▾ Abrir Elenco", count: (n: number) => `${n} jogador(es) no elenco oficial`, emptyRoster: "Nenhum jogador cadastrado neste elenco ainda.",
+    title: "Elencos & cartas", hint: "Clique em um time para abrir o elenco e em uma carta para ver os detalhes",
+    desc: "OVR decrescente", asc: "OVR crescente", collapseAll: "Recolher todos", showAll: "Exibir todos",
+    medium: "Cartas médias", large: "Cartas grandes", all: (n: number) => `Todas (${n})`, noTeams: "Nenhum time nesta região",
+    count: (n: number) => `${n} ${n === 1 ? "jogador" : "jogadores"} no elenco oficial`, emptyRoster: "Nenhum jogador cadastrado neste elenco ainda.",
   },
   en: {
-    title: "Rosters & Cards", hint: "Click a team's name or logo to open its roster. Hover over a card to preview it.",
-    desc: "↓ OVR Descending", asc: "↑ OVR Ascending", collapseAll: "▴ Collapse All", showAll: "▾ Show All",
-    medium: "Medium Cards", large: "Large Cards", all: (n: number) => `All (${n})`, noTeams: "No teams in this region",
-    collapse: "▴ Collapse", open: "▾ Open Roster", count: (n: number) => `${n} ${n === 1 ? "player" : "players"} on the official roster`, emptyRoster: "No players registered on this roster yet.",
+    title: "Rosters & cards", hint: "Click a team to open its roster and a card to see its details",
+    desc: "OVR descending", asc: "OVR ascending", collapseAll: "Collapse all", showAll: "Show all",
+    medium: "Medium cards", large: "Large cards", all: (n: number) => `All (${n})`, noTeams: "No teams in this region",
+    count: (n: number) => `${n} ${n === 1 ? "player" : "players"} on the official roster`, emptyRoster: "No players registered on this roster yet.",
   },
   es: {
-    title: "Rosters y Cartas", hint: "Haz clic en el nombre o el logo de un equipo para abrir su roster. Pasa el mouse sobre una carta para verla.",
-    desc: "↓ OVR Descendente", asc: "↑ OVR Ascendente", collapseAll: "▴ Contraer todos", showAll: "▾ Mostrar todos",
+    title: "Rosters y cartas", hint: "Haz clic en un equipo para abrir su roster y en una carta para ver los detalles",
+    desc: "OVR descendente", asc: "OVR ascendente", collapseAll: "Contraer todos", showAll: "Mostrar todos",
     medium: "Cartas medianas", large: "Cartas grandes", all: (n: number) => `Todas (${n})`, noTeams: "Ningún equipo en esta región",
-    collapse: "▴ Contraer", open: "▾ Abrir roster", count: (n: number) => `${n} ${n === 1 ? "jugador" : "jugadores"} en el roster oficial`, emptyRoster: "Aún no hay jugadores registrados en este roster.",
+    count: (n: number) => `${n} ${n === 1 ? "jugador" : "jugadores"} en el roster oficial`, emptyRoster: "Aún no hay jugadores registrados en este roster.",
   },
 });
 
@@ -55,16 +55,16 @@ export function Teams({ focusTeamId, onOpenCard }: { focusTeamId?: string; onOpe
 
   return (
     <section className="space-y-6">
-      <div className="noir-glass rounded-2xl p-5 sm:p-7 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="noir-glass space-y-4 rounded-2xl p-5 sm:p-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold uppercase tracking-[0.11em] text-zinc-100 leading-tight">{t.title}</h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1.5">{t.hint}</p>
+            <h1 className={pageTitle}>{t.title}</h1>
+            <p className="mt-1.5 text-xs text-zinc-400 sm:text-sm">{t.hint}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={pill(false)} onClick={() => setDesc((d) => !d)}>{desc ? t.desc : t.asc}</button>
+            <button type="button" className={pill(false)} onClick={() => setDesc((d) => !d)}><Icon name={desc ? "arrow-down" : "arrow-up"} />{desc ? t.desc : t.asc}</button>
             <button type="button" className={pill(false)} onClick={() => setOpen(anyOpen ? {} : Object.fromEntries(visible.map((v) => [v.team.id, true])))}>
-              {anyOpen ? t.collapseAll : t.showAll}
+              <Icon name={anyOpen ? "chevron-up" : "chevron-down"} />{anyOpen ? t.collapseAll : t.showAll}
             </button>
             <button type="button" className={pill(size === "medium")} onClick={() => setSize((s) => (s === "team" ? "medium" : "team"))}>
               {size === "medium" ? t.medium : t.large}
@@ -81,7 +81,7 @@ export function Teams({ focusTeamId, onOpenCard }: { focusTeamId?: string; onOpe
         </div>
       </div>
 
-      {visible.length === 0 && <div className="noir-glass rounded-2xl p-10 text-center text-sm font-bold uppercase tracking-wider text-zinc-200">{t.noTeams}</div>}
+      {visible.length === 0 && <div className="noir-glass rounded-2xl p-10 text-center text-sm text-zinc-300">{t.noTeams}</div>}
 
       {visible.map(({ team, o }) => {
         const roster = activeRoster(players, team.id);
@@ -95,29 +95,20 @@ export function Teams({ focusTeamId, onOpenCard }: { focusTeamId?: string; onOpe
             className={`noir-glass team-region-card ${regionClass(team.region)} rounded-2xl p-4 sm:p-6`}
           >
             <RegionBackdrop region={team.region} />
-            <button
-              type="button"
-              onClick={() => setOpen((s) => ({ ...s, [team.id]: !s[team.id] }))}
-              aria-expanded={isOpen}
-              className="team-header-trigger flex items-center gap-3.5 text-left group focus:outline-none"
-            >
-              <div className="team-logo-frame w-[60px] h-[60px]"><TeamLogo team={team} /></div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h2 className="team-title-text text-2xl sm:text-[26px] font-extrabold uppercase tracking-wider text-zinc-100 transition-all duration-200 leading-none">{team.name}</h2>
+            <TeamHeader team={team} open={isOpen} onClick={() => setOpen((s) => ({ ...s, [team.id]: !s[team.id] }))}>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="team-title-text font-display text-xl/tight font-extrabold tracking-wider text-dl-text uppercase transition-all duration-200 sm:text-2xl/tight">{team.name}</h2>
                   <span className="team-ovr-chip">
                     <span className="team-ovr-num">{o.count ? o.rounded : "--"}</span>
                     <span className="team-ovr-lbl">OVR</span>
                   </span>
                   <TrendBadge delta={teamTrend(players, team.id)} size="editor" />
-                  <span className="px-2 py-0.5 rounded-md bg-black/45 border border-zinc-200/25 text-[10px] font-bold uppercase tracking-widest text-zinc-200">{label(team.region)}</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/50 group-hover:bg-zinc-100 group-hover:text-zinc-950 border border-zinc-200/20 text-[10px] font-bold uppercase tracking-wider text-zinc-200 transition-colors">
-                    {isOpen ? t.collapse : t.open}
-                  </span>
                 </div>
-                <p className="text-xs text-zinc-300 mt-1">{t.count(roster.length)}</p>
+                <p className="mt-1 text-xs text-zinc-300">{label(team.region)} · {t.count(roster.length)}</p>
               </div>
-            </button>
+              <Icon name={isOpen ? "chevron-up" : "chevron-down"} className="size-5 text-zinc-400 transition-colors group-hover:text-white" />
+            </TeamHeader>
 
             <AnimatePresence initial={false}>
               {isOpen && (
@@ -129,9 +120,9 @@ export function Teams({ focusTeamId, onOpenCard }: { focusTeamId?: string; onOpe
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-4 pt-6 border-t border-zinc-200/15 flex flex-wrap justify-center sm:justify-start gap-6">
+                  <div className="mt-4 flex flex-wrap justify-center gap-6 border-t border-zinc-200/15 pt-6 sm:justify-start">
                     {roster.length === 0 && (
-                      <div className="w-full py-8 text-center text-xs text-zinc-300 border border-dashed border-zinc-200/20 rounded-xl bg-black/25">{t.emptyRoster}</div>
+                      <div className="w-full rounded-xl border border-dashed border-zinc-200/20 bg-black/25 py-8 text-center text-xs text-zinc-300">{t.emptyRoster}</div>
                     )}
                     {roster.map((p, i) => (
                       <motion.div key={p.id} initial={{ opacity: 0, y: 24, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
@@ -146,5 +137,15 @@ export function Teams({ focusTeamId, onOpenCard }: { focusTeamId?: string; onOpe
         );
       })}
     </section>
+  );
+}
+
+function TeamHeader({ team, open, onClick, children }: { team: Team; open: boolean; onClick: () => void; children: ReactNode }) {
+  const { rotateX, rotateY, ...tiltHandlers } = usePointerTilt();
+  return (
+    <motion.button type="button" onClick={onClick} aria-expanded={open} whileHover="hover" {...tiltHandlers} className="team-header-trigger group flex w-full items-center gap-4 text-left">
+      <TeamLogo3D team={team} className="size-[60px]" radius={14} tilt={{ rotateX, rotateY }} />
+      {children}
+    </motion.button>
   );
 }

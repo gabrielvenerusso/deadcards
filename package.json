@@ -1,6 +1,6 @@
 {
   "name": "deadcards",
-  "version": "1.4.0",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,9 @@
     "db:migrate": "wrangler d1 migrations apply deadcards --local",
     "db:migrate:remote": "wrangler d1 migrations apply deadcards --remote",
     "typegen": "wrangler types",
-    "db:import": "node scripts/import-save.mjs"
+    "db:import": "node scripts/import-save.mjs",
+    "test": "tsc -p test && vitest run",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
@@ -25,14 +27,24 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.69.1",
+    "@cloudflare/vitest-plugin": "^1.8.2",
     "@cloudflare/workers-types": "^4.20250101.0",
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.4.0",
+    "eslint": "^10.15.0",
+    "eslint-plugin-better-tailwindcss": "^4.11.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.8",
+    "globals": "^17.14.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.72.2",
     "vite": "^6.3.0",
+    "vitest": "^4.1.12",
     "wrangler": "^4.20.0"
   }
 }

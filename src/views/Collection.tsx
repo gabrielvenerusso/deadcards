@@ -4,6 +4,7 @@ import { useData } from "../lib/data";
 import { getPlayerOvr, isMainCard, teamOf } from "../lib/cards";
 import { Card } from "../components/Card";
 import { strings, useT, useLabel } from "../lib/i18n";
+import { field, pageTitle, primaryBtn } from "../lib/ui";
 
 type SortKey = "ovr" | "name" | "MIR" | "MAC" | "SUP" | "MOV" | "POL" | "CON";
 const PAGE = 24;
@@ -11,7 +12,7 @@ const PAGE = 24;
 const S = strings({
   pt: {
     title: "Coleção",
-    count: (n: number) => `${n} carta(s)`,
+    count: (n: number) => `${n} ${n === 1 ? "carta" : "cartas"}`,
     searchPlaceholder: "Buscar jogador, herói, time…",
     search: "Buscar",
     team: "Time",
@@ -28,7 +29,7 @@ const S = strings({
   },
   en: {
     title: "Collection",
-    count: (n: number) => `${n} card(s)`,
+    count: (n: number) => `${n} ${n === 1 ? "card" : "cards"}`,
     searchPlaceholder: "Search player, hero, team…",
     search: "Search",
     team: "Team",
@@ -45,7 +46,7 @@ const S = strings({
   },
   es: {
     title: "Colección",
-    count: (n: number) => `${n} carta(s)`,
+    count: (n: number) => `${n} ${n === 1 ? "carta" : "cartas"}`,
     searchPlaceholder: "Buscar jugador, héroe, equipo…",
     search: "Buscar",
     team: "Equipo",
@@ -82,17 +83,15 @@ export function Collection({ onOpenCard }: { onOpenCard: (id: string) => void })
     .filter((p) => !query || `${p.name} ${p.hero} ${p.position} ${teamOf(teams, p).name}`.toLowerCase().includes(query))
     .sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : sort === "ovr" ? getPlayerOvr(b) - getPlayerOvr(a) : b.stats[sort] - a.stats[sort]));
 
-  const field = "px-3 py-2 rounded-xl bg-zinc-900/80 border border-zinc-200/15 text-xs text-zinc-100";
-
   return (
     <section className="space-y-5">
-      <div className="noir-glass rounded-2xl p-5 sm:p-7 space-y-4">
+      <div className="noir-glass space-y-4 rounded-2xl p-5 sm:p-7">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-[0.11em] text-zinc-100">{t.title}</h1>
-          <p className="text-xs text-zinc-400 mt-1.5">{t.count(list.length)}</p>
+          <h1 className={pageTitle}>{t.title}</h1>
+          <p className="mt-1.5 text-xs text-zinc-400">{t.count(list.length)}</p>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder={t.searchPlaceholder} aria-label={t.search} className={`${field} w-60 placeholder:text-zinc-500`} />
+        <div className="flex flex-wrap items-center gap-2">
+          <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder={t.searchPlaceholder} aria-label={t.search} className={`${field} w-60`} />
           <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label={t.team} className={field}>
             <option value="ALL">{t.allTeams}</option>
             {teams.map((tm) => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
@@ -110,14 +109,14 @@ export function Collection({ onOpenCard }: { onOpenCard: (id: string) => void })
             <option value="name">{t.sortBy(t.name)}</option>
             {(["MIR", "MAC", "SUP", "MOV", "POL", "CON"] as const).map((k) => <option key={k} value={k}>{t.sortBy(k)}</option>)}
           </select>
-          <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
-            <input type="checkbox" checked={allVersions} onChange={(e) => setAllVersions(e.target.checked)} />
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-zinc-300 sm:min-h-9">
+            <input type="checkbox" className="size-4 accent-zinc-100" checked={allVersions} onChange={(e) => setAllVersions(e.target.checked)} />
             {t.allVersions}
           </label>
         </div>
       </div>
 
-      <motion.div layout className="flex flex-wrap justify-center sm:justify-start gap-6">
+      <motion.div layout className="flex flex-wrap justify-center gap-6 sm:justify-start">
         <AnimatePresence mode="popLayout">
           {list.slice(0, limit).map((p) => (
             <motion.div key={p.id} layout initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }} transition={{ duration: 0.3 }}>
@@ -128,7 +127,7 @@ export function Collection({ onOpenCard }: { onOpenCard: (id: string) => void })
       </motion.div>
       {list.length > limit && (
         <div className="text-center">
-          <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="px-5 py-2.5 rounded-xl bg-zinc-100 text-zinc-950 text-xs font-extrabold uppercase tracking-wider cursor-pointer">
+          <button type="button" onClick={() => setLimit((l) => l + PAGE)} className={primaryBtn}>
             {t.more(list.length - limit)}
           </button>
         </div>

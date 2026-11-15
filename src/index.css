@@ -4,16 +4,40 @@
 
 @font-face {
   font-family: 'VALVE Oracle';
-  src: local('VALVE Oracle'), local('VALVE Oracle SemiBold');
+  src: local('VALVE Oracle'), local('VALVE Oracle SemiBold'), url('./assets/fonts/valveoracle-semibold.ttf') format('truetype');
   font-weight: 100 900;
   font-display: swap;
 }
 
-*, *::before, *::after {
-  font-family: 'VALVE Oracle', ui-sans-serif, system-ui, sans-serif;
+/* Fonte de bloco do jogo (citadel_base_styles.css: block), usada nos títulos */
+@font-face {
+  font-family: 'VALVE Pulp';
+  src: local('VALVE Pulp'), url('./assets/fonts/valvepulp-bold.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Tokens do Deadlock (Panorama citadel_base_styles.css): offWhite, offBlack e o degradê do .ButtonBevel */
+@theme {
+  --font-display: 'VALVE Pulp', 'VALVE Oracle', ui-sans-serif, system-ui, sans-serif;
+  --color-dl-text: #ffefd7;
+  --color-dl-black: #10130d;
+  --color-dl-bevel-from: #373d45;
+  --color-dl-bevel-to: #4d5860;
+  --color-dl-bevel-hover-from: #4c5561;
+  --color-dl-bevel-hover-to: #6c7d88;
+}
+
+/* volume da logo: sombras encadeadas seguem o contorno da imagem e formam a "espessura"; a última é a sombra no chão */
+@utility logo-3d {
+  filter: drop-shadow(0 1px 0 #b8a98f) drop-shadow(0 1px 0 #8f8370) drop-shadow(0 2px 0 #6b6254) drop-shadow(0 10px 12px rgb(0 0 0 / 0.55));
 }
 
 @layer base {
+  /* na camada base para que utilitários como font-display consigam trocar a família */
+  *, *::before, *::after {
+    font-family: 'VALVE Oracle', ui-sans-serif, system-ui, sans-serif;
+  }
   :where(button:not(:disabled):not(.card-hover-overlay)) {
     transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
   }

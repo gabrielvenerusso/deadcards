@@ -38,7 +38,7 @@ npm run db:import -- caminho/do/save.json
 1. Para mudanças grandes, abra uma issue antes para alinharmos a ideia.
 2. Faça um fork e crie uma branch a partir da `main`: `feat/nome-curto`, `fix/nome-curto`.
 3. Mantenha o PR focado em um assunto só; PRs pequenos são revisados mais rápido.
-4. Rode `npm run build` (inclui checagem de tipos) antes de abrir o PR.
+4. Rode `npm run build` (inclui checagem de tipos) e `npm test` antes de abrir o PR. O CI roda os dois em todo PR e o merge só sai com ele verde.
 5. Abra o PR preenchendo o template e linkando a issue. Mudança visual? Coloque print ou vídeo de desktop e celular.
 6. Responda aos comentários da revisão com novos commits; o mantenedor faz o merge.
 
@@ -60,6 +60,12 @@ Exemplos: `feat(editor): add hero art upload`, `fix(card): keep tilt inside boun
 - Dependência nova precisa de justificativa no PR.
 - Rotas que alteram dados exigem admin e validam a entrada.
 - SQL sempre com parâmetros (`prepare(...).bind(...)`).
+
+## Testes
+
+- Ficam em `test/`, separados por área (`test/worker/`, `test/auth/`). Helpers e fixtures compartilhados vão em `test/helpers/`.
+- Rodam com Vitest dentro do runtime do Workers (`@cloudflare/vitest-plugin`), usando D1 local com todas as migrations aplicadas. As tabelas são limpas antes de cada teste.
+- Mudou uma rota de escrita, o resgate ou a checagem de admin? Adicione ou ajuste o teste correspondente.
 
 ## Banco de dados
 

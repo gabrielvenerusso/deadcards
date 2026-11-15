@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, useData } from "../lib/data";
-import { DEFAULT_TIER_CONFIG, REGIONS, calculateOVR, getPlayerOvr } from "../lib/cards";
+import { DEFAULT_TIER_CONFIG, REGIONS, STAT_KEYS, calculateOVR, getPlayerOvr } from "../lib/cards";
 import { FRAME_PRESETS, getCardTier, type Tier } from "../lib/rarity";
 import type { BgSettings, Player, Stats, Team, TierBand } from "../lib/types";
 import { Card } from "../components/Card";
@@ -9,7 +9,6 @@ import { TeamLogo } from "../components/TeamLogo";
 import { HoldButton } from "../components/HoldButton";
 
 const POSITIONS = ["Carry", "OffCarry", "Frontline", "Flex", "Suporte"];
-const STAT_KEYS: (keyof Stats)[] = ["MIR", "MAC", "SUP", "MOV", "POL", "CON"];
 const SECTIONS = [
   { id: "card", label: "Carta" },
   { id: "teams", label: "Times" },
@@ -30,7 +29,7 @@ const newId = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toS
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">{label}</span>
+      <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-400 uppercase">{label}</span>
       {children}
     </label>
   );
@@ -39,7 +38,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Range({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
   return (
     <label className="block">
-      <span className="flex justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400"><span>{label}</span><span className="text-zinc-100 tabular-nums">{value}</span></span>
+      <span className="flex justify-between text-[11px] font-bold tracking-[0.18em] text-zinc-400 uppercase"><span>{label}</span><span className="text-zinc-100 tabular-nums">{value}</span></span>
       <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-zinc-100" />
     </label>
   );
@@ -97,7 +96,7 @@ export function Editor({ editId, onEditId }: { editId: string | null; onEditId: 
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         {SECTIONS.map((s) => (
-          <button key={s.id} type="button" onClick={() => setSection(s.id)} className={`relative px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer border ${section === s.id ? "text-zinc-950 border-white" : "text-zinc-300 border-zinc-200/15 bg-zinc-900/60 hover:text-white"}`}>
+          <button key={s.id} type="button" onClick={() => setSection(s.id)} className={`relative cursor-pointer rounded-xl border px-4 py-2 text-xs font-bold tracking-wider uppercase ${section === s.id ? "border-white text-zinc-950" : "border-zinc-200/15 bg-zinc-900/60 text-zinc-300 hover:text-white"}`}>
             {section === s.id && <motion.span layoutId="editor-pill" className="absolute inset-0 rounded-xl bg-zinc-100" transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
             <span className="relative">{s.label}</span>
           </button>
@@ -157,12 +156,12 @@ function PlayerForm({ editId, onEditId }: { editId: string | null; onEditId: (id
   if (!teams.length) return <p className="text-zinc-300">Crie um time na aba Times antes de criar cartas.</p>;
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] gap-8 items-start">
-      <div className="noir-glass rounded-3xl p-5 sm:p-7 space-y-6">
-        <div className="flex flex-wrap items-end gap-3 justify-between">
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="noir-glass space-y-6 rounded-3xl p-5 sm:p-7">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <span className="rk-chip">{d.id ? "Modo Edição" : "Modo Criação"}</span>
-            <h2 className="text-2xl font-black uppercase tracking-[0.12em] text-white mt-2">{d.id ? `Editar: ${existing?.name ?? d.name}` : "Criar Nova Carta"}</h2>
+            <h2 className="mt-2 text-2xl font-black tracking-[0.12em] text-white uppercase">{d.id ? `Editar: ${existing?.name ?? d.name}` : "Criar Nova Carta"}</h2>
           </div>
           <div className="flex gap-2">
             <select className={`${input} w-auto`} value={editId ?? ""} onChange={(e) => onEditId(e.target.value || null)} aria-label="Carregar carta">
@@ -172,7 +171,7 @@ function PlayerForm({ editId, onEditId }: { editId: string | null; onEditId: (id
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nome"><input className={input} value={d.name} maxLength={40} onChange={(e) => set({ name: e.target.value })} placeholder="NOVO JOGADOR" /></Field>
           <Field label="Time">
             <select className={input} value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>
@@ -189,54 +188,54 @@ function PlayerForm({ editId, onEditId }: { editId: string | null; onEditId: (id
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">Herói: <span className="text-zinc-100">{d.hero}</span></span>
+            <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-400 uppercase">Herói: <span className="text-zinc-100">{d.hero}</span></span>
             <input className={`${input} max-w-48 py-1.5`} placeholder="Buscar herói" value={heroQuery} onChange={(e) => setHeroQuery(e.target.value)} />
           </div>
-          <div className="grid grid-cols-6 sm:grid-cols-9 gap-1.5 max-h-44 overflow-y-auto pr-1">
+          <div className="grid max-h-44 grid-cols-6 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-9">
             {heroNames.filter((h) => h.toLowerCase().includes(heroQuery.toLowerCase())).map((h) => {
               const icon = heroIcon(h);
               return (
                 <motion.button key={h} type="button" whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => set({ hero: h })} title={h} aria-pressed={d.hero === h}
-                  className={`aspect-square rounded-lg overflow-hidden border cursor-pointer bg-zinc-900 ${d.hero === h ? "border-white shadow-[0_0_12px_rgba(255,255,255,0.5)]" : "border-zinc-200/10 opacity-70 hover:opacity-100"}`}>
-                  {icon ? <img src={icon} alt={h} className="w-full h-full object-cover" loading="lazy" /> : <span className="text-[9px] text-zinc-300">{h}</span>}
+                  className={`aspect-square cursor-pointer overflow-hidden rounded-lg border bg-zinc-900 ${d.hero === h ? "border-white shadow-[0_0_12px_rgba(255,255,255,0.5)]" : "border-zinc-200/10 opacity-70 hover:opacity-100"}`}>
+                  {icon ? <img src={icon} alt={h} className="size-full object-cover" loading="lazy" /> : <span className="text-[9px] text-zinc-300">{h}</span>}
                 </motion.button>
               );
             })}
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+        <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
           {STAT_KEYS.map((k) => <Range key={k} label={k} value={d.stats[k]} min={1} max={99} onChange={(v) => setStat(k, v)} />)}
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-4 items-end">
+        <div className="grid items-end gap-4 sm:grid-cols-3">
           <Field label={`OVR (média ${calculateOVR(d.stats)})`}>
             <input type="number" min={1} max={99} className={input} value={d.ovr ?? ""} onChange={(e) => set({ ovr: Number(e.target.value) })} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-zinc-300 sm:col-span-2 pb-2.5">
+          <label className="flex items-center gap-2 pb-2.5 text-sm text-zinc-300 sm:col-span-2">
             <input type="checkbox" checked={rebase} onChange={(e) => setRebase(e.target.checked)} className="accent-zinc-100" />
             Nova base de overall (zera a variação ▲/▼)
           </label>
         </div>
 
-        <div className="grid sm:grid-cols-4 gap-4">
-          <Field label="Cor 1"><input type="color" className="w-full h-10 rounded-lg bg-transparent cursor-pointer" value={d.c1} onChange={(e) => set({ c1: e.target.value })} /></Field>
-          <Field label="Cor 2"><input type="color" className="w-full h-10 rounded-lg bg-transparent cursor-pointer" value={d.c2} onChange={(e) => set({ c2: e.target.value })} /></Field>
+        <div className="grid gap-4 sm:grid-cols-4">
+          <Field label="Cor 1"><input type="color" className="h-10 w-full cursor-pointer rounded-lg bg-transparent" value={d.c1} onChange={(e) => set({ c1: e.target.value })} /></Field>
+          <Field label="Cor 2"><input type="color" className="h-10 w-full cursor-pointer rounded-lg bg-transparent" value={d.c2} onChange={(e) => set({ c2: e.target.value })} /></Field>
           <Field label="Rodapé"><input className={input} maxLength={30} value={d.footer ?? ""} onChange={(e) => set({ footer: e.target.value })} /></Field>
-          <Field label="Cor do rodapé"><input type="color" className="w-full h-10 rounded-lg bg-transparent cursor-pointer" value={d.footerColor ?? "#f4f4f5"} onChange={(e) => set({ footerColor: e.target.value })} /></Field>
+          <Field label="Cor do rodapé"><input type="color" className="h-10 w-full cursor-pointer rounded-lg bg-transparent" value={d.footerColor ?? "#f4f4f5"} onChange={(e) => set({ footerColor: e.target.value })} /></Field>
         </div>
         <Range label="Tamanho do rodapé (px)" value={d.footerSize ?? 12} min={8} max={20} onChange={(v) => set({ footerSize: v })} />
 
         <div className="space-y-3 rounded-2xl border border-zinc-200/10 p-4">
-          <div className="flex flex-wrap items-center gap-3 justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">Arte própria da carta</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-400 uppercase">Arte própria da carta</span>
             <div className="flex gap-2">
               <ImagePick folder="players" onUrl={(url) => set({ art: { url, zoom: 100, x: 50, y: 50 } })} />
               {d.art && <button type="button" className={ghost} onClick={() => set({ art: undefined })}>Usar arte do herói</button>}
             </div>
           </div>
           {d.art && (
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid gap-4 sm:grid-cols-3">
               <Range label="Zoom" value={d.art.zoom ?? 100} min={50} max={300} onChange={(v) => set({ art: { ...d.art!, zoom: v } })} />
               <Range label="X" value={d.art.x ?? 50} min={0} max={100} onChange={(v) => set({ art: { ...d.art!, x: v } })} />
               <Range label="Y" value={d.art.y ?? 50} min={0} max={100} onChange={(v) => set({ art: { ...d.art!, y: v } })} />
@@ -253,15 +252,15 @@ function PlayerForm({ editId, onEditId }: { editId: string | null; onEditId: (id
             <>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(FRAME_PRESETS).map(([k, pr]) => (
-                  <button key={k} type="button" onClick={() => set({ frame: { style: k } })} className={`px-3 py-1.5 rounded-lg text-xs font-bold border cursor-pointer ${frame.style === k ? "text-zinc-950 border-white" : "text-zinc-200 border-zinc-200/15"}`}
+                  <button key={k} type="button" onClick={() => set({ frame: { style: k } })} className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold ${frame.style === k ? "border-white text-zinc-950" : "border-zinc-200/15 text-zinc-200"}`}
                     style={frame.style === k ? { background: `linear-gradient(135deg, ${pr.c1}, ${pr.c2})` } : undefined}>
                     {pr.name}
                   </button>
                 ))}
               </div>
-              <div className="grid sm:grid-cols-3 gap-4">
-                <Field label="Cor da moldura"><input type="color" className="w-full h-10 rounded-lg bg-transparent cursor-pointer" value={frame.c1 ?? FRAME_PRESETS[frame.style]?.c1 ?? "#d9a93a"} onChange={(e) => set({ frame: { ...frame, c1: e.target.value } })} /></Field>
-                <Field label="Cor do brilho"><input type="color" className="w-full h-10 rounded-lg bg-transparent cursor-pointer" value={frame.c2 ?? FRAME_PRESETS[frame.style]?.c2 ?? "#fff0b8"} onChange={(e) => set({ frame: { ...frame, c2: e.target.value } })} /></Field>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Cor da moldura"><input type="color" className="h-10 w-full cursor-pointer rounded-lg bg-transparent" value={frame.c1 ?? FRAME_PRESETS[frame.style]?.c1 ?? "#d9a93a"} onChange={(e) => set({ frame: { ...frame, c1: e.target.value } })} /></Field>
+                <Field label="Cor do brilho"><input type="color" className="h-10 w-full cursor-pointer rounded-lg bg-transparent" value={frame.c2 ?? FRAME_PRESETS[frame.style]?.c2 ?? "#fff0b8"} onChange={(e) => set({ frame: { ...frame, c2: e.target.value } })} /></Field>
                 <Range label="Espessura" value={frame.pad ?? FRAME_PRESETS[frame.style]?.pad ?? 4} min={2} max={10} onChange={(v) => set({ frame: { ...frame, pad: v } })} />
               </div>
               <Field label="Texto especial"><textarea className={input} rows={2} maxLength={400} value={d.specialText ?? ""} onChange={(e) => set({ specialText: e.target.value })} /></Field>
@@ -286,7 +285,7 @@ function PlayerForm({ editId, onEditId }: { editId: string | null; onEditId: (id
         </div>
       </div>
 
-      <div className="lg:sticky lg:top-28 flex justify-center">
+      <div className="flex justify-center lg:sticky lg:top-28">
         <motion.div key={d.hero + (d.special ? frame.style : "")} initial={{ rotateY: -25, opacity: 0.4 }} animate={{ rotateY: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 18 }} style={{ transformPerspective: 1200 }}>
           <TierPulse tier={getCardTier(preview, settings.tierConfig!)}>
             <Card player={preview} variant="editor" />
@@ -331,17 +330,17 @@ function TeamsForm() {
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6 items-start">
-      <div className="noir-glass rounded-3xl p-5 space-y-2">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Times ({teams.length})</h2>
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="noir-glass space-y-2 rounded-3xl p-5">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-black tracking-[0.12em] text-white uppercase">Times ({teams.length})</h2>
           <button type="button" className={primary} onClick={() => setD({ id: "", name: "", tag: "", region: "Europa" })}>+ Novo time</button>
         </div>
         {teams.map((t) => (
-          <motion.div layout key={t.id} className="flex items-center gap-3 rounded-xl bg-zinc-950/50 border border-zinc-200/10 p-2.5">
-            <div className="w-10 h-10 shrink-0"><TeamLogo team={t} /></div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-zinc-100 truncate">{t.name} <span className="text-zinc-400">({t.tag})</span></p>
+          <motion.div layout key={t.id} className="flex items-center gap-3 rounded-xl border border-zinc-200/10 bg-zinc-950/50 p-2.5">
+            <div className="size-10 shrink-0"><TeamLogo team={t} /></div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-bold text-zinc-100">{t.name} <span className="text-zinc-400">({t.tag})</span></p>
               <p className="text-xs text-zinc-400">{t.region} · {players.filter((p) => p.teamId === t.id).length} cartas</p>
             </div>
             <button type="button" className={ghost} onClick={() => setD(structuredClone(t))}>Editar</button>
@@ -352,9 +351,9 @@ function TeamsForm() {
 
       <AnimatePresence>
         {d && (
-          <motion.div key={d.id || "new"} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="noir-glass rounded-3xl p-5 space-y-4">
-            <h3 className="text-lg font-black uppercase tracking-[0.12em] text-white">{d.id ? `Editar ${d.name}` : "Novo time"}</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
+          <motion.div key={d.id || "new"} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="noir-glass space-y-4 rounded-3xl p-5">
+            <h3 className="text-lg font-black tracking-[0.12em] text-white uppercase">{d.id ? `Editar ${d.name}` : "Novo time"}</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nome"><input className={input} value={d.name} maxLength={40} onChange={(e) => set({ name: e.target.value })} /></Field>
               <Field label="Tag"><input className={input} value={d.tag} maxLength={6} onChange={(e) => set({ tag: e.target.value })} /></Field>
               <Field label="Região">
@@ -363,7 +362,7 @@ function TeamsForm() {
                 </select>
               </Field>
               <div className="flex items-end gap-3">
-                {d.logo && <div className="w-12 h-12"><TeamLogo team={d} /></div>}
+                {d.logo && <div className="size-12"><TeamLogo team={d} /></div>}
                 <ImagePick folder="teams" label="Logo" onUrl={(logo) => set({ logo })} />
                 {d.logo && <button type="button" className={ghost} onClick={() => set({ logo: undefined })}>Remover</button>}
               </div>
@@ -389,7 +388,7 @@ function BgFields({ bg, onChange, folder, title }: { bg?: BgSettings; onChange: 
   return (
     <div className="space-y-3 rounded-2xl border border-zinc-200/10 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">{title}</span>
+        <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-400 uppercase">{title}</span>
         <div className="flex gap-2">
           <ImagePick folder={folder} label="Imagem" onUrl={(imageUrl) => set({ imageUrl })} />
           {b.imageUrl && <button type="button" className={ghost} onClick={() => set({ imageUrl: undefined })}>Sem imagem</button>}
@@ -397,8 +396,8 @@ function BgFields({ bg, onChange, folder, title }: { bg?: BgSettings; onChange: 
         </div>
       </div>
       {b.imageUrl && <img src={b.imageUrl} alt="" className="h-20 rounded-lg object-cover" />}
-      <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-        <Field label="Cor"><input type="color" className="w-full h-10 rounded-lg bg-transparent cursor-pointer" value={b.color} onChange={(e) => set({ color: e.target.value })} /></Field>
+      <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <Field label="Cor"><input type="color" className="h-10 w-full cursor-pointer rounded-lg bg-transparent" value={b.color} onChange={(e) => set({ color: e.target.value })} /></Field>
         <Field label="Ajuste">
           <select className={input} value={b.size} onChange={(e) => set({ size: e.target.value })}>
             <option value="cover">Cobrir</option><option value="contain">Conter</option><option value="auto">Original</option>
@@ -421,17 +420,17 @@ function HeroesForm() {
   const sample: Player = { ...(players[0] ?? { id: "x", teamId: teams[0]?.id ?? "", position: "Flex", stats: { MIR: 85, MAC: 85, SUP: 85, MOV: 85, POL: 85, CON: 85 }, c1: "#0e7490", c2: "#082f49", history: [] }), name: name.toUpperCase(), hero: name, art: art ?? undefined, special: undefined };
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] gap-8 items-start">
-      <div className="noir-glass rounded-3xl p-5 space-y-5">
-        <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Arte dos heróis</h2>
-        <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 max-h-52 overflow-y-auto pr-1">
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="noir-glass space-y-5 rounded-3xl p-5">
+        <h2 className="text-lg font-black tracking-[0.12em] text-white uppercase">Arte dos heróis</h2>
+        <div className="grid max-h-52 grid-cols-6 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-10">
           {heroNames.map((h) => {
             const icon = heroIcon(h);
             return (
               <button key={h} type="button" onClick={() => setName(h)} title={h} aria-pressed={name === h}
-                className={`relative aspect-square rounded-lg overflow-hidden border cursor-pointer bg-zinc-900 ${name === h ? "border-white" : "border-zinc-200/10 opacity-70 hover:opacity-100"}`}>
-                {icon ? <img src={icon} alt={h} className="w-full h-full object-cover" loading="lazy" /> : <span className="text-[9px] text-zinc-300">{h}</span>}
-                {heroes[h] && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-400" aria-label="arte própria" />}
+                className={`relative aspect-square cursor-pointer overflow-hidden rounded-lg border bg-zinc-900 ${name === h ? "border-white" : "border-zinc-200/10 opacity-70 hover:opacity-100"}`}>
+                {icon ? <img src={icon} alt={h} className="size-full object-cover" loading="lazy" /> : <span className="text-[9px] text-zinc-300">{h}</span>}
+                {heroes[h] && <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-emerald-400" aria-label="arte própria" />}
               </button>
             );
           })}
@@ -442,7 +441,7 @@ function HeroesForm() {
           {heroes[name] && <button type="button" className={danger} disabled={busy} onClick={() => run(() => api.remove("heroes", name), "Arte própria removida.")}>Remover arte própria</button>}
         </div>
         {art && (
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Range label="Zoom" value={art.zoom} min={50} max={300} onChange={(zoom) => setArt({ ...art, zoom })} />
             <Range label="X" value={art.x} min={0} max={100} onChange={(x) => setArt({ ...art, x })} />
             <Range label="Y" value={art.y} min={0} max={100} onChange={(y) => setArt({ ...art, y })} />
@@ -455,7 +454,7 @@ function HeroesForm() {
           <Toast msg={msg} />
         </div>
       </div>
-      <div className="lg:sticky lg:top-28 flex justify-center"><Card player={sample} variant="editor" /></div>
+      <div className="flex justify-center lg:sticky lg:top-28"><Card player={sample} variant="editor" /></div>
     </div>
   );
 }
@@ -469,12 +468,12 @@ function LookForm() {
   const setTier = (i: number, patch: Partial<TierBand>) => setTiers((t) => t.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6 items-start">
-      <div className="noir-glass rounded-3xl p-5 space-y-5">
-        <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Fundo e capa</h2>
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="noir-glass space-y-5 rounded-3xl p-5">
+        <h2 className="text-lg font-black tracking-[0.12em] text-white uppercase">Fundo e capa</h2>
         <BgFields bg={bg} onChange={setBg} folder="bg" title="Fundo do site" />
         <div className="space-y-3 rounded-2xl border border-zinc-200/10 p-4">
-          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">Imagem da capa (Home)</span>
+          <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-400 uppercase">Imagem da capa (Home)</span>
           {homeHero && <img src={homeHero} alt="" className="h-28 rounded-lg object-cover" />}
           <div className="flex gap-2">
             <ImagePick folder="home" onUrl={setHomeHero} />
@@ -482,22 +481,22 @@ function LookForm() {
           </div>
         </div>
       </div>
-      <div className="noir-glass rounded-3xl p-5 space-y-3">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Tier List</h2>
+      <div className="noir-glass space-y-3 rounded-3xl p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black tracking-[0.12em] text-white uppercase">Tier List</h2>
           <button type="button" className={ghost} onClick={() => setTiers(structuredClone(DEFAULT_TIER_CONFIG))}>Padrão</button>
         </div>
         {tiers.map((t, i) => (
-          <div key={t.key} className="grid grid-cols-[3rem_1fr_1fr_2.5rem_2.5rem] gap-2 items-center">
-            <span className="h-9 rounded-lg flex items-center justify-center font-black" style={{ background: t.bg, color: t.text }}>{t.key}</span>
+          <div key={t.key} className="grid grid-cols-[3rem_1fr_1fr_2.5rem_2.5rem] items-center gap-2">
+            <span className="flex h-9 items-center justify-center rounded-lg font-black" style={{ background: t.bg, color: t.text }}>{t.key}</span>
             <input type="number" className={input} value={t.min} aria-label={`Mínimo ${t.key}`} onChange={(e) => setTier(i, { min: Number(e.target.value) })} />
             <input type="number" className={input} value={t.max} aria-label={`Máximo ${t.key}`} onChange={(e) => setTier(i, { max: Number(e.target.value) })} />
-            <input type="color" className="w-full h-9 rounded bg-transparent cursor-pointer" value={t.bg} aria-label={`Cor ${t.key}`} onChange={(e) => setTier(i, { bg: e.target.value })} />
-            <input type="color" className="w-full h-9 rounded bg-transparent cursor-pointer" value={t.text} aria-label={`Texto ${t.key}`} onChange={(e) => setTier(i, { text: e.target.value })} />
+            <input type="color" className="h-9 w-full cursor-pointer rounded-sm bg-transparent" value={t.bg} aria-label={`Cor ${t.key}`} onChange={(e) => setTier(i, { bg: e.target.value })} />
+            <input type="color" className="h-9 w-full cursor-pointer rounded-sm bg-transparent" value={t.text} aria-label={`Texto ${t.key}`} onChange={(e) => setTier(i, { text: e.target.value })} />
           </div>
         ))}
       </div>
-      <div className="lg:col-span-2 flex items-center gap-3">
+      <div className="flex items-center gap-3 lg:col-span-2">
         <button type="button" className={primary} disabled={busy} onClick={() => run(() => api.save("settings", "app", { bg: bg ?? null, homeHero: homeHero ?? null, tierConfig: tiers }), "Aparência salva!")}>
           {busy ? "Salvando…" : "Salvar aparência"}
         </button>
@@ -579,16 +578,16 @@ function CodesForm() {
 
   return (
     <div className="space-y-6">
-      <div className="noir-glass rounded-3xl p-5 sm:p-7 space-y-6">
+      <div className="noir-glass space-y-6 rounded-3xl p-5 sm:p-7">
         <div>
-          <h2 className="text-lg font-extrabold uppercase tracking-[0.12em] text-zinc-100">Novo código</h2>
-          <p className="text-xs text-zinc-400 mt-1">Quem digitar o código na aba Resgatar ganha a carta escolhida.</p>
+          <h2 className="text-lg font-extrabold tracking-[0.12em] text-zinc-100 uppercase">Novo código</h2>
+          <p className="mt-1 text-xs text-zinc-400">Quem digitar o código na aba Resgatar ganha a carta escolhida.</p>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2">
           <Field label="1. Código">
             <div className="flex gap-2">
-              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} className={`${input} tracking-[0.15em] font-bold`} />
+              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} className={`${input} font-bold tracking-[0.15em]`} />
               <button type="button" onClick={() => setCode(randomCode())} className={ghost}>Gerar</button>
             </div>
           </Field>
@@ -631,19 +630,19 @@ function CodesForm() {
         </div>
       </div>
 
-      <div className="noir-glass rounded-3xl p-5 sm:p-7 space-y-3">
-        <h2 className="text-lg font-extrabold uppercase tracking-[0.12em] text-zinc-100">Códigos criados</h2>
+      <div className="noir-glass space-y-3 rounded-3xl p-5 sm:p-7">
+        <h2 className="text-lg font-extrabold tracking-[0.12em] text-zinc-100 uppercase">Códigos criados</h2>
         {codes.length === 0 && <p className="text-xs text-zinc-400">Nenhum código ainda.</p>}
         {codes.map((c) => {
           const st = codeStatus(c, now);
           return (
-            <div key={c.code} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-200/10 text-xs text-zinc-200">
+            <div key={c.code} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-zinc-200/10 bg-zinc-900/60 px-4 py-3 text-xs text-zinc-200">
               <span className="font-extrabold tracking-[0.15em] text-zinc-100">{c.code}</span>
-              <span className="truncate max-w-48">{nameOf(c.player_id)}</span>
+              <span className="max-w-48 truncate">{nameOf(c.player_id)}</span>
               <span>{c.uses}/{c.max_uses} usos</span>
               <span className="text-zinc-400">{fmtTs(c.starts_at)} → {fmtTs(c.expires_at)}</span>
-              <span className={`font-bold uppercase tracking-wider ${st.cls}`}>{st.label}</span>
-              <button type="button" onClick={() => remove(c.code)} className="ml-auto px-3 py-1.5 rounded-lg text-red-300 hover:bg-red-950/40 cursor-pointer">Apagar</button>
+              <span className={`font-bold tracking-wider uppercase ${st.cls}`}>{st.label}</span>
+              <button type="button" onClick={() => remove(c.code)} className="ml-auto cursor-pointer rounded-lg px-3 py-1.5 text-red-300 hover:bg-red-950/40">Apagar</button>
             </div>
           );
         })}

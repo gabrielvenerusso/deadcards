@@ -39,7 +39,7 @@ export function HoldButton({ onConfirm, disabled, className = "", label, childre
       onKeyUp={cancel}
       onBlur={cancel}
       onContextMenu={(e) => e.preventDefault()}
-      className={`relative overflow-hidden select-none touch-none ${className}`}
+      className={`relative touch-none overflow-hidden select-none ${className}`}
     >
       <span
         aria-hidden="true"

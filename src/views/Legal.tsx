@@ -83,13 +83,13 @@ export function Legal({ page }: { page: "privacy" | "terms" }) {
   const locale = useLocale();
   const { title, items } = t[page];
   return (
-    <article className="max-w-2xl mx-auto noir-glass rounded-2xl border border-zinc-200/15 p-6 sm:p-8">
-      <h1 className="text-2xl font-extrabold uppercase tracking-wider text-zinc-100">{title}</h1>
+    <article className="noir-glass mx-auto max-w-2xl rounded-2xl border border-zinc-200/15 p-6 sm:p-8">
+      <h1 className="font-display text-2xl font-extrabold tracking-wider text-dl-text uppercase">{title}</h1>
       <p className="mt-1 text-xs text-zinc-500">{t.updated(new Date(2026, 10, 15).toLocaleDateString(locale))}</p>
       {items.map(([h, p]) => (
         <section key={h} className="mt-5">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-200">{h}</h2>
-          <p className="mt-1 text-sm text-zinc-400 leading-relaxed">{p}</p>
+          <h2 className="text-sm font-bold tracking-wider text-zinc-200 uppercase">{h}</h2>
+          <p className="mt-1 text-sm/relaxed text-zinc-400">{p}</p>
         </section>
       ))}
     </article>

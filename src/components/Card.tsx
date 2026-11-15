@@ -5,7 +5,7 @@ import { getPlayerOvr, getPlayerTrend, hexToRgba, teamOf } from "../lib/cards";
 import { strings, useT, useLabel } from "../lib/i18n";
 import { getCardTier, ornamentSVG, particleSpecs, rarityStyleVars, ringSVG } from "../lib/rarity";
 import { useData } from "../lib/data";
-import { TeamLogo } from "./TeamLogo";
+import { TeamLogo3D } from "./TeamLogo3D";
 import { TrendBadge } from "./TrendBadge";
 
 type Variant = "team" | "medium" | "editor";
@@ -56,7 +56,7 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
       <div className={`deadlock-card-shell ${sizeClass} group select-none`}>
         <div className="deadlock-card-inner flex flex-col justify-between p-4 sm:p-5" style={topPad ? { paddingTop: topPad } : undefined}>
           {art ? (
-            <div className="hero-bg-wrap absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="hero-bg-wrap pointer-events-none absolute inset-0 overflow-hidden">
               <img
                 src={art.url}
                 alt={player.hero}
@@ -73,7 +73,7 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
           )}
 
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="pointer-events-none absolute inset-0"
             style={{ background: `linear-gradient(180deg, ${hexToRgba(player.c2, 0)} 52%, ${hexToRgba(player.c2, 0.5)} 80%, rgba(9, 9, 11, 0.78) 100%)` }}
           />
           {rk.custom ? (
@@ -88,30 +88,28 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
           <div className="relative z-10 flex items-start justify-between gap-2">
             <div className="flex flex-col items-start">
               <div className="flex items-center gap-1.5">
-                <span data-ovr className={`${editor ? "text-6xl" : medium ? "text-4xl" : "text-5xl"} font-black leading-none text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]`}>{ovr}</span>
+                <span data-ovr className={`${editor ? "text-6xl" : medium ? "text-4xl" : "text-5xl"} leading-none font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]`}>{ovr}</span>
                 <TrendBadge delta={getPlayerTrend(player)} size={editor ? "editor" : "card"} />
               </div>
-              <span className="mt-1.5 px-2 py-0.5 rounded bg-black/65 border border-white/25 text-[10px] font-extrabold uppercase tracking-widest text-zinc-100">
+              <span className="mt-1.5 rounded-sm border border-white/25 bg-black/65 px-2 py-0.5 text-[10px] font-extrabold tracking-widest text-zinc-100 uppercase">
                 {label(player.position || "Flex")}
               </span>
               {team.logo ? (
-                <span className="team-logo-frame mt-1.5" title={team.name} style={{ width: editor ? 48 : 40, height: editor ? 48 : 40, borderRadius: 8 }}>
-                  <TeamLogo team={team} />
-                </span>
+                <div className="mt-1.5"><TeamLogo3D team={team} className={editor ? "size-12" : "size-10"} radius={8} /></div>
               ) : (
-                <span className="mt-1.5 px-2 py-0.5 rounded bg-white/20 border border-white/35 text-[10px] font-black uppercase tracking-widest text-white">{team.tag || "FA"}</span>
+                <span className="mt-1.5 rounded-sm border border-white/35 bg-white/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-white uppercase">{team.tag || "FA"}</span>
               )}
             </div>
           </div>
 
           <div className={`relative z-10 mt-auto ${medium ? "pb-5" : editor ? "pb-9" : "pb-8"}`}>
-            <div className={`text-center pb-1.5 mb-2 border-b border-zinc-200/45 ${medium ? "" : "mx-2"}`}>
-              <h3 className={`${editor ? "text-2xl" : medium ? "text-lg" : "text-xl"} font-black uppercase tracking-[0.12em] text-white truncate drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]`}>
+            <div className={`mb-2 border-b border-zinc-200/45 pb-1.5 text-center ${medium ? "" : "mx-2"}`}>
+              <h3 className={`${editor ? "text-2xl" : medium ? "text-lg" : "text-xl"} truncate font-black tracking-[0.12em] text-white uppercase drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]`}>
                 {player.name}
               </h3>
             </div>
             {!medium && (
-              <div className={`grid grid-cols-2 gap-x-5 ${editor ? "px-5" : "px-4"} gap-y-1.5 py-1 card-txt-shadow`}>
+              <div className={`grid grid-cols-2 gap-x-5 ${editor ? "px-5" : "px-4"} card-txt-shadow gap-y-1.5 py-1`}>
                 {STAT_ORDER.map((k) => (
                   <div key={k} className="flex items-center justify-between leading-none">
                     <span className={`${editor ? "text-base" : "text-sm"} font-extrabold tracking-wider text-zinc-200`}>{k}</span>
@@ -121,7 +119,7 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
               </div>
             )}
             <div
-              className={`text-center ${medium ? "mt-2" : "mt-3"} font-black uppercase leading-tight`}
+              className={`text-center ${medium ? "mt-2" : "mt-3"} leading-tight font-black uppercase`}
               style={{ fontSize: medium ? Math.round(footerSize * 0.85) : footerSize, letterSpacing: "0.2em", color: footerColor, textShadow: "0 1px 6px rgba(0,0,0,0.95)" }}
             >
               {player.footer ?? "Deadlock Cards"}
@@ -130,7 +128,7 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
 
           {onOpen && (
             <button type="button" className="card-hover-overlay border-0" onClick={onOpen} aria-label={t.viewOf(player.name)}>
-              <span className={`card-hover-cta w-full ${medium ? "max-w-[170px]" : "max-w-[215px]"} py-2.5 px-4 rounded-xl bg-zinc-100 text-zinc-950 text-xs font-extrabold uppercase tracking-wider shadow-[0_0_24px_rgba(255,255,255,0.4)]`}>
+              <span className={`card-hover-cta w-full ${medium ? "max-w-[170px]" : "max-w-[215px]"} rounded-xl bg-zinc-100 px-4 py-2.5 text-xs font-extrabold tracking-wider text-zinc-950 uppercase shadow-[0_0_24px_rgba(255,255,255,0.4)]`}>
                 {t.view}
               </span>
             </button>

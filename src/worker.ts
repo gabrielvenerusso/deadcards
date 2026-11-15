@@ -52,7 +52,10 @@ async function cachedFetch(env: Env, path: string): Promise<Response> {
     return new Response(row.body, { headers: { "content-type": "application/json", "x-cache": "hit" } });
   }
   const upstream = await fetch(env.DEADLOCK_API_BASE + path);
-  if (!upstream.ok) return upstream;
+  if (!upstream.ok) {
+    if (row) return new Response(row.body, { headers: { "content-type": "application/json", "x-cache": "stale" } });
+    return upstream;
+  }
   const body = await upstream.text();
   await env.DB.prepare(UPSERT_CACHE).bind(path, body, now).run();
   return new Response(body, { headers: { "content-type": "application/json", "x-cache": "miss" } });
@@ -338,5 +341,6 @@ export default {
 
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(syncFromDeadlockApi(env));
+    ctx.waitUntil(env.DB.prepare("DELETE FROM api_cache WHERE cache_key LIKE 'feedback:%' AND fetched_at < unixepoch() - ?").bind(FEEDBACK_GAP_SECONDS).run());
   },
 } satisfies ExportedHandler<Env>;
