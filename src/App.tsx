@@ -16,6 +16,8 @@ import { Compare } from "./views/Compare";
 import { LineupBuilder } from "./views/LineupBuilder";
 import { PlayerProfile } from "./views/PlayerProfile";
 import { cardPath, navigate, useLocation } from "./lib/navigation";
+import { LANGS, LANG_LABEL, LangProvider, strings, useLang, useT, type Lang } from "./lib/i18n";
+import { Feedback } from "./views/Feedback";
 
 const REPO = "https://github.com/hagizao/deadcards";
 
@@ -27,24 +29,89 @@ function GitHubIcon() {
   );
 }
 
-type Tab = "home" | "teams" | "tierlist" | "collection" | "redeem" | "editor" | "privacy" | "terms" | "compare" | "lineup" | "profile";
-const PATHS: Record<Tab, string> = { home: "/", teams: "/times", tierlist: "/tier-list", collection: "/colecao", redeem: "/resgatar", editor: "/editor", privacy: "/privacidade", terms: "/termos", compare: "/comparar", lineup: "/montar-time", profile: "/jogador" };
-const TABS: { id: Exclude<Tab, "home" | "privacy" | "terms" | "profile">; label: string }[] = [
-  { id: "teams", label: "Times" },
-  { id: "tierlist", label: "Tier List" },
-  { id: "collection", label: "Coleção" },
-  { id: "compare", label: "Comparar" },
-  { id: "lineup", label: "Montar Time" },
-  { id: "redeem", label: "Resgatar" },
-];
+type Tab = "home" | "teams" | "tierlist" | "collection" | "redeem" | "editor" | "privacy" | "terms" | "compare" | "lineup" | "profile" | "feedback";
+const PATHS: Record<Tab, string> = { home: "/", teams: "/times", tierlist: "/tier-list", collection: "/colecao", redeem: "/resgatar", editor: "/editor", privacy: "/privacidade", terms: "/termos", compare: "/comparar", lineup: "/montar-time", profile: "/jogador", feedback: "/feedback" };
+const TABS = ["teams", "tierlist", "collection", "compare", "lineup", "redeem"] as const;
+
+const S = strings({
+  pt: {
+    tabs: { teams: "Times", tierlist: "Tier List", collection: "Coleção", redeem: "Resgatar", editor: "Editor", compare: "Comparar", lineup: "Montar Time" },
+    mainNav: "Navegação principal",
+    projectLinks: "Links do projeto",
+    language: "Idioma",
+    github: "Código aberto no GitHub",
+    feedback: "Relatar problema / sugerir ideia",
+    contribute: "Como contribuir",
+    privacy: "Privacidade",
+    terms: "Termos",
+    managed: "Projeto 4fun gerenciado pelo Hagizao:",
+    notAffiliated: "Não afiliado à Valve.",
+    rmBefore: "Seu sistema está com ",
+    rmBold: "movimento reduzido",
+    rmAfter: " ativado, então as animações das cartas estão desligadas. Para vê-las, desative essa opção nas configurações de acessibilidade do seu sistema.",
+    rmClose: "Fechar aviso",
+  },
+  en: {
+    tabs: { teams: "Teams", tierlist: "Tier List", collection: "Collection", redeem: "Redeem", editor: "Editor", compare: "Compare", lineup: "Build Team" },
+    mainNav: "Main navigation",
+    projectLinks: "Project links",
+    language: "Language",
+    github: "Open source on GitHub",
+    feedback: "Report a bug / suggest an idea",
+    contribute: "How to contribute",
+    privacy: "Privacy",
+    terms: "Terms",
+    managed: "4fun project run by Hagizao:",
+    notAffiliated: "Not affiliated with Valve.",
+    rmBefore: "Your system has ",
+    rmBold: "reduced motion",
+    rmAfter: " turned on, so the card animations are off. To see them, turn off that option in your system's accessibility settings.",
+    rmClose: "Dismiss notice",
+  },
+  es: {
+    tabs: { teams: "Equipos", tierlist: "Tier List", collection: "Colección", redeem: "Canjear", editor: "Editor", compare: "Comparar", lineup: "Crear equipo" },
+    mainNav: "Navegación principal",
+    projectLinks: "Enlaces del proyecto",
+    language: "Idioma",
+    github: "Código abierto en GitHub",
+    feedback: "Reportar un problema / sugerir una idea",
+    contribute: "Cómo contribuir",
+    privacy: "Privacidad",
+    terms: "Términos",
+    managed: "Proyecto 4fun administrado por Hagizao:",
+    notAffiliated: "No afiliado a Valve.",
+    rmBefore: "Tu sistema tiene activado el ",
+    rmBold: "movimiento reducido",
+    rmAfter: ", así que las animaciones de las cartas están desactivadas. Para verlas, desactiva esa opción en los ajustes de accesibilidad de tu sistema.",
+    rmClose: "Cerrar aviso",
+  },
+});
+
+// Select nativo: teclado, leitor de tela e menu de celular de graça. A cor do texto vem do tema escuro.
+function LangSelect({ className = "" }: { className?: string }) {
+  const t = useT(S);
+  const { lang, setLang } = useLang();
+  return (
+    <select
+      aria-label={t.language}
+      value={lang}
+      onChange={(e) => setLang(e.target.value as Lang)}
+      className={`rounded-xl border border-zinc-200/15 bg-zinc-900/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:text-white cursor-pointer ${className}`}
+    >
+      {LANGS.map((l) => <option key={l} value={l} className="bg-zinc-900 normal-case">{LANG_LABEL[l]}</option>)}
+    </select>
+  );
+}
 
 export default function App() {
   const route = useLocation();
   return (
     <MotionConfig reducedMotion="user">
-      <DataProvider>
-        {route.split("?")[0] === "/login" ? <><Background /><Login /></> : <Shell />}
-      </DataProvider>
+      <LangProvider>
+        <DataProvider>
+          {route.split("?")[0] === "/login" ? <><Background /><Login /></> : <Shell />}
+        </DataProvider>
+      </LangProvider>
     </MotionConfig>
   );
 }
@@ -86,7 +153,8 @@ function Shell() {
     const selected = players.find((p) => p.id === segment);
     document.title = selected && (spotlight || tab === "profile") ? `${selected.name} · Deadlock Cards` : `${tab === "compare" ? "Comparar" : tab === "lineup" ? "Montar Time" : "Deadlock Cards"} · Deadlock Cards`;
   }, [segment, spotlight, tab, players]);
-  const tabs = me?.admin ? [...TABS, { id: "editor" as const, label: "Editor" }] : TABS;
+  const t = useT(S);
+  const tabs = me?.admin ? [...TABS, "editor" as const] : TABS;
   const openTeam = (id: string) => { setFocusTeam(id); setTab("teams"); };
   const editCard = (id: string) => { setSpotlight(null); setEditId(id); setTab("editor"); };
 
@@ -99,22 +167,23 @@ function Shell() {
             <span className="w-2.5 h-2.5 rounded-full bg-zinc-100 shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
             <span className="text-base sm:text-xl font-extrabold uppercase tracking-[0.18em] text-zinc-100"><span className="sm:hidden">DC</span><span className="hidden sm:inline">Deadlock Cards</span></span>
           </button>
-          <nav className="relative ml-auto min-w-0 flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto [scrollbar-width:none] py-1" aria-label="Navegação principal">
-            {tabs.map((t) => (
+          <nav className="relative ml-auto min-w-0 flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto [scrollbar-width:none] py-1" aria-label={t.mainNav}>
+            {tabs.map((id) => (
               <button
-                key={t.id}
+                key={id}
                 type="button"
-                onClick={() => { setFocusTeam(undefined); setTab(t.id); }}
-                aria-current={tab === t.id ? "page" : undefined}
+                onClick={() => { setFocusTeam(undefined); setTab(id); }}
+                aria-current={tab === id ? "page" : undefined}
                 className={`relative shrink-0 whitespace-nowrap px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold tracking-wider uppercase cursor-pointer border transition-colors ${
-                  tab === t.id ? "text-zinc-950 border-white" : "text-zinc-300 hover:text-white border-zinc-200/15 bg-zinc-900/60"
+                  tab === id ? "text-zinc-950 border-white" : "text-zinc-300 hover:text-white border-zinc-200/15 bg-zinc-900/60"
                 }`}
               >
-                {tab === t.id && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-xl bg-zinc-100 shadow-[0_0_18px_rgba(244,244,245,0.35)]" transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
-                <span className="relative">{t.label}</span>
+                {tab === id && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-xl bg-zinc-100 shadow-[0_0_18px_rgba(244,244,245,0.35)]" transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
+                <span className="relative">{t.tabs[id]}</span>
               </button>
             ))}
           </nav>
+          <LangSelect className="hidden xl:block shrink-0" />
           <div className="shrink-0"><Account /></div>
         </div>
       </header>
@@ -145,6 +214,7 @@ function Shell() {
             {spotlight && !players.some((p) => p.id === spotlight) && <p role="alert" className="feature-panel">Carta não encontrada. Escolha outra carta no catálogo.</p>}
             {tab === "editor" && me?.admin && <Editor editId={editId} onEditId={setEditId} />}
             {(tab === "privacy" || tab === "terms") && <Legal page={tab} />}
+            {tab === "feedback" && <Feedback />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -152,22 +222,22 @@ function Shell() {
       <footer className="border-t border-zinc-200/10 mt-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
           <a href={REPO} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-bold uppercase tracking-wider text-zinc-300 hover:text-white">
-            <GitHubIcon /> Código aberto no GitHub
+            <GitHubIcon /> {t.github}
           </a>
-          <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Links do projeto">
-            <a href={`${REPO}/issues/new/choose`} target="_blank" rel="noreferrer" className="hover:text-white">Relatar problema</a>
-            <a href={`${REPO}/issues/new/choose`} target="_blank" rel="noreferrer" className="hover:text-white">Sugerir ideia</a>
-            <a href={`${REPO}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer" className="hover:text-white">Como contribuir</a>
-            <button type="button" onClick={() => setTab("privacy")} className="hover:text-white cursor-pointer">Privacidade</button>
-            <button type="button" onClick={() => setTab("terms")} className="hover:text-white cursor-pointer">Termos</button>
+          <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label={t.projectLinks}>
+            <button type="button" onClick={() => setTab("feedback")} className="hover:text-white cursor-pointer">{t.feedback}</button>
+            <a href={`${REPO}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer" className="hover:text-white">{t.contribute}</a>
+            <button type="button" onClick={() => setTab("privacy")} className="hover:text-white cursor-pointer">{t.privacy}</button>
+            <button type="button" onClick={() => setTab("terms")} className="hover:text-white cursor-pointer">{t.terms}</button>
           </nav>
+          <LangSelect className="xl:hidden" />
         </div>
         <p className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 text-xs text-zinc-500">
-          Projeto 4fun gerenciado pelo Hagizao:{" "}
+          {t.managed}{" "}
           <a href="https://www.youtube.com/@hagizao" target="_blank" rel="noreferrer" className="text-zinc-300 hover:text-white">YouTube</a> ·{" "}
           <a href="https://www.twitch.tv/hagizao" target="_blank" rel="noreferrer" className="text-zinc-300 hover:text-white">Twitch</a> ·{" "}
-          <a href="https://kick.com/hagizao" target="_blank" rel="noreferrer" className="text-zinc-300 hover:text-white">Kick</a>.
-          Não afiliado à Valve.
+          <a href="https://kick.com/hagizao" target="_blank" rel="noreferrer" className="text-zinc-300 hover:text-white">Kick</a>.{" "}
+          {t.notAffiliated}
         </p>
       </footer>
 
@@ -179,6 +249,7 @@ function Shell() {
 }
 
 function ReducedMotionNotice() {
+  const t = useT(S);
   const reduced = useReducedMotion();
   const [hidden, setHidden] = useState(() => { try { return localStorage.getItem("rm-notice") === "1"; } catch { return false; } });
   if (!reduced || hidden) return null;
@@ -186,8 +257,8 @@ function ReducedMotionNotice() {
   return (
     <div role="status" className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
       <div className="flex items-start gap-3 rounded-xl border border-zinc-200/15 bg-zinc-900/80 px-4 py-3 text-xs text-zinc-300">
-        <p className="flex-1">Seu sistema está com <strong>movimento reduzido</strong> ativado, então as animações das cartas estão desligadas. Para vê-las, desative essa opção nas configurações de acessibilidade do seu sistema.</p>
-        <button type="button" onClick={close} aria-label="Fechar aviso" className="shrink-0 text-zinc-400 hover:text-white cursor-pointer">✕</button>
+        <p className="flex-1">{t.rmBefore}<strong>{t.rmBold}</strong>{t.rmAfter}</p>
+        <button type="button" onClick={close} aria-label={t.rmClose} className="shrink-0 text-zinc-400 hover:text-white cursor-pointer">✕</button>
       </div>
     </div>
   );

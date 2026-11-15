@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AppData, HeroArt } from "./types";
 import { DEFAULT_TIER_CONFIG } from "./cards";
+import { strings, useT } from "./i18n";
 
 type ApiHero = { name: string; player_selectable?: boolean; images?: { icon_hero_card_webp?: string; icon_image_small_webp?: string } };
 
@@ -16,10 +17,16 @@ type Ctx = AppData & {
 
 const DataContext = createContext<Ctx | null>(null);
 
+const S = strings({
+  pt: { loadFail: "Falha ao carregar dados", loading: "Carregando…" },
+  en: { loadFail: "Failed to load data", loading: "Loading…" },
+  es: { loadFail: "Error al cargar los datos", loading: "Cargando…" },
+});
+
 export async function call(path: string, init: RequestInit) {
   const r = await fetch(path, init);
-  const body = (await r.json().catch(() => ({}))) as { error?: string; url?: string; playerId?: string };
-  if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
+  const body = (await r.json().catch(() => ({}))) as { error?: string; code?: string; url?: string; playerId?: string };
+  if (!r.ok) throw Object.assign(new Error(body.error ?? `HTTP ${r.status}`), { code: body.code });
   return body;
 }
 
@@ -35,6 +42,7 @@ export const api = {
 };
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const t = useT(S);
   const [data, setData] = useState<AppData | null>(null);
   const [apiHeroes, setApiHeroes] = useState<ApiHero[]>([]);
   const [me, setMe] = useState<Me>(null);
@@ -75,8 +83,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
   }, [data, apiHeroes, me]);
 
-  if (error) return <div className="min-h-dvh flex items-center justify-center text-red-300 text-sm">Falha ao carregar dados: {error}</div>;
-  if (!value) return <div className="min-h-dvh flex items-center justify-center text-zinc-400 text-xs uppercase tracking-[0.3em]">Carregando…</div>;
+  if (error) return <div className="min-h-dvh flex items-center justify-center text-red-300 text-sm">{t.loadFail}: {error}</div>;
+  if (!value) return <div className="min-h-dvh flex items-center justify-center text-zinc-400 text-xs uppercase tracking-[0.3em]">{t.loading}</div>;
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 

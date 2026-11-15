@@ -2,11 +2,20 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { useData } from "../lib/data";
 import { regionClass, teamOvr, teamTrend, tierKeyForOvr } from "../lib/cards";
+import { strings, useT, useLabel } from "../lib/i18n";
 import { RegionBackdrop } from "../components/RegionBackdrop";
 import { TeamLogo } from "../components/TeamLogo";
 
+const S = strings({
+  pt: { featured: "Herói em destaque", prev: "Herói anterior", next: "Próximo herói", none: "Nenhum time cadastrado ainda.", players: (n: number) => `${n} jogador(es)` },
+  en: { featured: "Featured hero", prev: "Previous hero", next: "Next hero", none: "No teams registered yet.", players: (n: number) => `${n} ${n === 1 ? "player" : "players"}` },
+  es: { featured: "Héroe destacado", prev: "Héroe anterior", next: "Siguiente héroe", none: "Aún no hay equipos registrados.", players: (n: number) => `${n} ${n === 1 ? "jugador" : "jugadores"}` },
+});
+
 export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
   const { teams, players, settings, heroNames, heroArt } = useData();
+  const t = useT(S);
+  const label = useLabel();
   const slides = useMemo(() => {
     const list = heroNames.flatMap((n) => {
       const url = heroArt(n)?.url;
@@ -32,7 +41,7 @@ export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
             <motion.img
               key={homeImg}
               src={homeImg}
-              alt={hero || "Herói em destaque"}
+              alt={hero || t.featured}
               draggable={false}
               custom={dir}
               variants={{
@@ -51,10 +60,10 @@ export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
         <div className="absolute inset-x-0 bottom-0 h-1/3 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(9,9,11,0.55), transparent)" }} />
         {slides.length > 1 && (
           <>
-            <button type="button" className="home-hero-arrow home-hero-arrow--l" onClick={() => step(-1)} aria-label="Herói anterior">
+            <button type="button" className="home-hero-arrow home-hero-arrow--l" onClick={() => step(-1)} aria-label={t.prev}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
             </button>
-            <button type="button" className="home-hero-arrow home-hero-arrow--r" onClick={() => step(1)} aria-label="Próximo herói">
+            <button type="button" className="home-hero-arrow home-hero-arrow--r" onClick={() => step(1)} aria-label={t.next}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
@@ -63,7 +72,7 @@ export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
       </div>
 
       <div className="home-col home-teams-scroll flex flex-col gap-3.5" style={{ "--ft": "0px", "--fb": "120px" } as React.CSSProperties}>
-        {ranked.length === 0 && <div className="noir-glass rounded-2xl p-6 text-sm text-zinc-300">Nenhum time cadastrado ainda.</div>}
+        {ranked.length === 0 && <div className="noir-glass rounded-2xl p-6 text-sm text-zinc-300">{t.none}</div>}
         {ranked.map((r, idx) => {
           const tier = r.count ? settings.tierConfig!.find((t) => t.key === tierKeyForOvr(r.rounded, settings.tierConfig!)) : undefined;
           return (
@@ -83,7 +92,7 @@ export function Home({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
               <div className="relative z-10 min-w-0 flex-1">
                 <div className="text-lg sm:text-2xl font-extrabold uppercase tracking-wider text-zinc-100 truncate leading-tight">{r.team.name}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
-                  <span>{r.team.tag}</span><span className="text-zinc-500">•</span><span>{r.team.region}</span><span className="text-zinc-500">•</span><span>{r.count} jogador(es)</span>
+                  <span>{r.team.tag}</span><span className="text-zinc-500">•</span><span>{label(r.team.region)}</span><span className="text-zinc-500">•</span><span>{t.players(r.count)}</span>
                 </div>
               </div>
               <div className="relative z-10 shrink-0 flex flex-col items-center gap-1">

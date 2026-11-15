@@ -1,8 +1,17 @@
 import { useRef, useState, type ReactNode } from "react";
 
+import { strings, useT } from "../lib/i18n";
+
 const HOLD_MS = 1500;
 
+const S = strings({
+  pt: { hold: "Segure para confirmar" },
+  en: { hold: "Hold to confirm" },
+  es: { hold: "Mantén presionado para confirmar" },
+});
+
 export function HoldButton({ onConfirm, disabled, className = "", label, children }: { onConfirm: () => void; disabled?: boolean; className?: string; label: string; children: ReactNode }) {
+  const t = useT(S);
   const [holding, setHolding] = useState(false);
   const timer = useRef<number>(undefined);
   const start = () => {
@@ -20,8 +29,8 @@ export function HoldButton({ onConfirm, disabled, className = "", label, childre
     <button
       type="button"
       disabled={disabled}
-      aria-label={`${label} (segure para confirmar)`}
-      title="Segure para confirmar"
+      aria-label={`${label} (${t.hold.toLowerCase()})`}
+      title={t.hold}
       onPointerDown={start}
       onPointerUp={cancel}
       onPointerLeave={cancel}

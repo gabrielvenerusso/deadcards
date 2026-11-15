@@ -41,11 +41,12 @@ const sql = (v) => (v === null || v === undefined ? "NULL" : typeof v === "numbe
 const json = (v) => sql(JSON.stringify(v));
 const num = (v, fallback) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 
-const lines = ["DELETE FROM players;", "DELETE FROM teams;", "DELETE FROM heroes;", "DELETE FROM settings;"];
+// upsert em vez de DELETE: user_cards e redeem_codes têm ON DELETE CASCADE em players
+const lines = ["DELETE FROM heroes;", "DELETE FROM settings;"];
 
 for (const t of d.teams ?? []) {
   const logoKey = stash(t.logo, `teams/${slug(t.id)}`);
-  lines.push(`INSERT INTO teams (id, name, tag, region, logo_key, bg_json) VALUES (${sql(t.id)}, ${sql(t.name)}, ${sql(t.tag)}, ${sql(t.region || "Europa")}, ${sql(logoKey)}, ${t.bg ? json({ ...t.bg, imageUrl: "" }) : "NULL"});`);
+  lines.push(`INSERT INTO teams (id, name, tag, region, logo_key, bg_json) VALUES (${sql(t.id)}, ${sql(t.name)}, ${sql(t.tag)}, ${sql(t.region || "Europa")}, ${sql(logoKey)}, ${t.bg ? json({ ...t.bg, imageUrl: "" }) : "NULL"}) ON CONFLICT(id) DO UPDATE SET name=excluded.name, tag=excluded.tag, region=excluded.region, logo_key=excluded.logo_key, bg_json=excluded.bg_json;`);
 }
 
 const EXTRA = ["footer", "footerSize", "footerColor", "special", "specialText", "frame", "variantOf", "inactive"];
@@ -56,7 +57,7 @@ for (const p of d.players ?? []) {
     if (key) extra.art = { ...p.art, url: `/img/${key}` };
   }
   const ovr = Number.isFinite(Number(p.ovr)) && p.ovr !== null && p.ovr !== "" ? Math.round(Number(p.ovr)) : null;
-  lines.push(`INSERT INTO players (id, team_id, name, position, hero, stats_json, ovr, c1, c2, history_json, extra_json) VALUES (${sql(p.id)}, ${sql(p.teamId)}, ${sql(p.name)}, ${sql(p.position || "Flex")}, ${sql(p.hero)}, ${json(p.stats)}, ${sql(ovr)}, ${sql(p.c1)}, ${sql(p.c2)}, ${json(p.history ?? [])}, ${json(extra)});`);
+  lines.push(`INSERT INTO players (id, team_id, name, position, hero, stats_json, ovr, c1, c2, history_json, extra_json) VALUES (${sql(p.id)}, ${sql(p.teamId)}, ${sql(p.name)}, ${sql(p.position || "Flex")}, ${sql(p.hero)}, ${json(p.stats)}, ${sql(ovr)}, ${sql(p.c1)}, ${sql(p.c2)}, ${json(p.history ?? [])}, ${json(extra)}) ON CONFLICT(id) DO UPDATE SET team_id=excluded.team_id, name=excluded.name, position=excluded.position, hero=excluded.hero, stats_json=excluded.stats_json, ovr=excluded.ovr, c1=excluded.c1, c2=excluded.c2, history_json=excluded.history_json, extra_json=excluded.extra_json;`);
 }
 
 for (const [name, h] of Object.entries(d.heroSettings ?? {})) {
@@ -69,6 +70,11 @@ const settings = { tierConfig: d.tierConfig, bg: d.bg ? { ...d.bg, imageUrl: "" 
 if (d.bgImageMode === "custom") settings.bgImageKey = stash(d.bgImage, "bg/main");
 if (d.homeHeroId === "custom" || d.homeHeroImage) settings.homeHeroKey = stash(d.homeHeroImage, "home/hero");
 for (const [k, v] of Object.entries(settings)) if (v) lines.push(`INSERT INTO settings (key, value_json) VALUES (${sql(k)}, ${json(v)});`);
+
+const keepPlayers = (d.players ?? []).map((p) => sql(p.id)).join(", ") || "NULL";
+const keepTeams = (d.teams ?? []).map((t) => sql(t.id)).join(", ") || "NULL";
+lines.push(`DELETE FROM players WHERE id NOT IN (${keepPlayers}) AND id NOT IN (SELECT player_id FROM user_cards) AND id NOT IN (SELECT player_id FROM redeem_codes);`);
+lines.push(`DELETE FROM teams WHERE id NOT IN (${keepTeams}) AND id NOT IN (SELECT team_id FROM players);`);
 
 const sqlFile = join(out, "import.sql");
 writeFileSync(sqlFile, lines.join("\n") + "\n");

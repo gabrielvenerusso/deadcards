@@ -1,9 +1,17 @@
 import { motion } from "motion/react";
 import { useEffect } from "react";
 import { useData } from "../lib/data";
+import { strings, useT } from "../lib/i18n";
 import { TwitchIcon, signInWithGoogle, signInWithTwitch, loginReturn } from "../components/Account";
 
+const S = strings({
+  pt: { twitch: "Entrar com Twitch", google: "Entrar com Google" },
+  en: { twitch: "Sign in with Twitch", google: "Sign in with Google" },
+  es: { twitch: "Ingresar con Twitch", google: "Ingresar con Google" },
+});
+
 export function SignInOptions() {
+  const t = useT(S);
   return (
     <div className="space-y-3">
       <button
@@ -11,14 +19,14 @@ export function SignInOptions() {
         onClick={signInWithTwitch}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold uppercase tracking-wider text-sm text-white bg-[#9146ff] hover:bg-[#a970ff] shadow-[0_0_24px_rgba(145,70,255,0.45)] transition cursor-pointer"
       >
-        <TwitchIcon /> Entrar com Twitch
+        <TwitchIcon /> {t.twitch}
       </button>
       <button
         type="button"
         onClick={signInWithGoogle}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold uppercase tracking-wider text-sm text-zinc-900 bg-white hover:bg-zinc-200 shadow-[0_0_24px_rgba(255,255,255,0.2)] transition cursor-pointer"
       >
-        <span className="font-black text-base leading-none" aria-hidden="true">G</span> Entrar com Google
+        <span className="font-black text-base leading-none" aria-hidden="true">G</span> {t.google}
       </button>
     </div>
   );

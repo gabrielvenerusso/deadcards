@@ -2,13 +2,34 @@ import { motion } from "motion/react";
 import { useState, type CSSProperties } from "react";
 import { useData } from "../lib/data";
 import { getPlayerOvr, getPlayerTrend, isMainCard, REGIONS, regionClass, teamOf, teamOvr, teamTrend, tierKeyForOvr } from "../lib/cards";
+import { strings, useT, useLabel } from "../lib/i18n";
 import { getCardTier, rarityStyleVars } from "../lib/rarity";
 import { RegionBackdrop } from "../components/RegionBackdrop";
 import { TeamLogo } from "../components/TeamLogo";
 
+const S = strings({
+  pt: {
+    players: "Jogadores", teams: "Times", region: "Região", allRegions: "Todas as regiões", search: "Buscar", placeholder: "Buscar…",
+    rankedPlayers: (n: number) => `${n} jogador(es) classificado(s)`, rankedTeams: (n: number) => `${n} time(s) classificado(s)`,
+    nobody: (min: number, max: number) => `Ninguém nesta faixa (${min}–${max} OVR)`, count: (n: number) => `${n} jogador(es)`,
+  },
+  en: {
+    players: "Players", teams: "Teams", region: "Region", allRegions: "All regions", search: "Search", placeholder: "Search…",
+    rankedPlayers: (n: number) => `${n} ranked ${n === 1 ? "player" : "players"}`, rankedTeams: (n: number) => `${n} ranked ${n === 1 ? "team" : "teams"}`,
+    nobody: (min: number, max: number) => `Nobody in this range (${min}–${max} OVR)`, count: (n: number) => `${n} ${n === 1 ? "player" : "players"}`,
+  },
+  es: {
+    players: "Jugadores", teams: "Equipos", region: "Región", allRegions: "Todas las regiones", search: "Buscar", placeholder: "Buscar…",
+    rankedPlayers: (n: number) => `${n} ${n === 1 ? "jugador clasificado" : "jugadores clasificados"}`, rankedTeams: (n: number) => `${n} ${n === 1 ? "equipo clasificado" : "equipos clasificados"}`,
+    nobody: (min: number, max: number) => `Nadie en este rango (${min}–${max} OVR)`, count: (n: number) => `${n} ${n === 1 ? "jugador" : "jugadores"}`,
+  },
+});
+
 export function TierList({ onOpenCard, onOpenTeam }: { onOpenCard: (id: string) => void; onOpenTeam: (id: string) => void }) {
   const { teams, players, settings, heroArt } = useData();
   const cfg = settings.tierConfig!;
+  const tr = useT(S);
+  const label = useLabel();
   const [mode, setMode] = useState<"players" | "teams">("players");
   const [region, setRegion] = useState("ALL");
   const [q, setQ] = useState("");
@@ -26,7 +47,7 @@ export function TierList({ onOpenCard, onOpenTeam }: { onOpenCard: (id: string) 
 
   const rankedTeams = teams
     .map((t) => ({ t, ...teamOvr(players, t.id), delta: teamTrend(players, t.id) }))
-    .filter(({ t }) => (region === "ALL" || t.region === region) && (!query || `${t.name} ${t.tag} ${t.region}`.toLowerCase().includes(query)))
+    .filter(({ t }) => (region === "ALL" || t.region === region) && (!query || `${t.name} ${t.tag} ${t.region} ${label(t.region)}`.toLowerCase().includes(query)))
     .sort((a, b) => b.exact - a.exact || a.t.name.localeCompare(b.t.name));
 
   const tab = (active: boolean) =>
@@ -37,16 +58,16 @@ export function TierList({ onOpenCard, onOpenTeam }: { onOpenCard: (id: string) 
       <div className="noir-glass rounded-2xl p-5 sm:p-7 flex flex-col lg:flex-row lg:items-center gap-4 justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-[0.11em] text-zinc-100">Tier List</h1>
-          <p className="text-xs text-zinc-400 mt-1.5">{mode === "players" ? `${rankedPlayers.length} jogador(es) classificado(s)` : `${rankedTeams.length} time(s) classificado(s)`}</p>
+          <p className="text-xs text-zinc-400 mt-1.5">{mode === "players" ? tr.rankedPlayers(rankedPlayers.length) : tr.rankedTeams(rankedTeams.length)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={tab(mode === "players")} onClick={() => setMode("players")}>Jogadores</button>
-          <button type="button" className={tab(mode === "teams")} onClick={() => setMode("teams")}>Times</button>
-          <select value={region} onChange={(e) => setRegion(e.target.value)} aria-label="Região" className="px-3 py-2 rounded-xl bg-zinc-900/80 border border-zinc-200/15 text-xs text-zinc-200">
-            <option value="ALL">Todas as regiões</option>
-            {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          <button type="button" className={tab(mode === "players")} onClick={() => setMode("players")}>{tr.players}</button>
+          <button type="button" className={tab(mode === "teams")} onClick={() => setMode("teams")}>{tr.teams}</button>
+          <select value={region} onChange={(e) => setRegion(e.target.value)} aria-label={tr.region} className="px-3 py-2 rounded-xl bg-zinc-900/80 border border-zinc-200/15 text-xs text-zinc-200">
+            <option value="ALL">{tr.allRegions}</option>
+            {REGIONS.map((r) => <option key={r} value={r}>{label(r)}</option>)}
           </select>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" aria-label="Buscar" className="px-3 py-2 rounded-xl bg-zinc-900/80 border border-zinc-200/15 text-xs text-zinc-100 placeholder:text-zinc-500 w-40" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr.placeholder} aria-label={tr.search} className="px-3 py-2 rounded-xl bg-zinc-900/80 border border-zinc-200/15 text-xs text-zinc-100 placeholder:text-zinc-500 w-40" />
         </div>
       </div>
 
@@ -62,7 +83,7 @@ export function TierList({ onOpenCard, onOpenTeam }: { onOpenCard: (id: string) 
                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-75 mt-1">{tier.min}–{tier.max}</span>
               </div>
               <div className="tierlist-content-cell">
-                {empty && <span className="text-[11px] text-zinc-500 italic px-2">Ninguém nesta faixa ({tier.min}–{tier.max} OVR)</span>}
+                {empty && <span className="text-[11px] text-zinc-500 italic px-2">{tr.nobody(tier.min, tier.max)}</span>}
                 {pItems.map(({ p, team, ovr }, i) => {
                   const art = heroArt(p.hero);
                   const delta = getPlayerTrend(p);
@@ -106,7 +127,7 @@ export function TierList({ onOpenCard, onOpenTeam }: { onOpenCard: (id: string) 
                         {delta > 0 && <span className="text-[9px] font-extrabold text-emerald-300">▲+{delta}</span>}
                         {delta < 0 && <span className="text-[9px] font-extrabold text-red-300">▼{delta}</span>}
                       </div>
-                      <div className="mt-1 text-[10px] text-zinc-300 font-semibold">{t.region} • {count} jogador(es)</div>
+                      <div className="mt-1 text-[10px] text-zinc-300 font-semibold">{label(t.region)} • {tr.count(count)}</div>
                     </div>
                   </button>
                 ))}

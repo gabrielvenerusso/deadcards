@@ -18,6 +18,7 @@ export interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   ADMINS: string;
+  GITHUB_TOKEN: string;
 }
 
 const IMAGE_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };
@@ -28,7 +29,8 @@ const ID_RE = /^[\w-]{1,64}$/;
 
 const keyOf = (url: unknown) => (typeof url === "string" && url.startsWith("/img/") ? url.slice(5) : null);
 const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
-const bad = (msg: string, status = 400) => Response.json({ error: msg }, { status });
+// `code` é opcional: rotas que o front traduz mandam um código estável além da mensagem em pt.
+const bad = (msg: string, status = 400, code?: string) => Response.json({ error: msg, code }, { status });
 
 const CACHE_TTL_SECONDS = 60 * 60 * 6;
 const ALLOWED_PATHS = ["/v1/assets/heroes", "/v1/analytics/hero-stats", "/v1/patches"];
@@ -117,6 +119,11 @@ async function write(env: Env, request: Request, kind: string, id: string): Prom
   const b = del ? {} : ((await request.json().catch(() => null)) as Record<string, any> | null);
   if (!b || typeof b !== "object" || Array.isArray(b)) return bad("JSON inválido");
   const db = env.DB;
+  if (del && (kind === "players" || kind === "teams")) {
+    const col = kind === "players" ? "id" : "team_id";
+    const owned = await db.prepare(`SELECT 1 FROM user_cards uc JOIN players p ON p.id = uc.player_id WHERE p.${col} = ? LIMIT 1`).bind(id).first();
+    if (owned) return bad("há cartas resgatadas por usuários; marque como inativo em vez de apagar", 409);
+  }
   if (kind === "players") {
     if (del) await db.prepare("DELETE FROM players WHERE id = ?").bind(id).run();
     else {
@@ -185,20 +192,20 @@ const INVALID_CODE = "código inválido, expirado ou esgotado";
 
 async function redeem(env: Env, request: Request): Promise<Response> {
   const user = await currentUser(env, request);
-  if (!user) return bad("entre para resgatar", 401);
+  if (!user) return bad("entre para resgatar", 401, "login");
   const body = (await request.json().catch(() => null)) as { code?: unknown } | null;
   const code = typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
-  if (!code) return bad("código vazio");
+  if (!code) return bad("código vazio", 400, "empty");
   const row = await env.DB.prepare(`SELECT player_id FROM redeem_codes WHERE code = ? AND ${CODE_VALID}`).bind(code).first<{ player_id: string }>();
-  if (!row) return bad(INVALID_CODE, 404);
+  if (!row) return bad(INVALID_CODE, 404, "invalid");
   try {
     const [, consume] = await env.DB.batch([
       env.DB.prepare(`INSERT INTO user_cards (user_id, player_id) SELECT ?, player_id FROM redeem_codes WHERE code = ? AND ${CODE_VALID}`).bind(user.id, code),
       env.DB.prepare(`UPDATE redeem_codes SET uses = uses + 1 WHERE code = ? AND ${CODE_VALID}`).bind(code),
     ]);
-    if (!consume.meta.changes) return bad(INVALID_CODE, 404);
+    if (!consume.meta.changes) return bad(INVALID_CODE, 404, "invalid");
   } catch (e) {
-    if (String(e).includes("UNIQUE")) return bad("essa carta já está na sua coleção", 409);
+    if (String(e).includes("UNIQUE")) return bad("essa carta já está na sua coleção", 409, "owned");
     throw e;
   }
   return Response.json({ playerId: row.player_id });
@@ -239,6 +246,41 @@ async function codes(env: Env, request: Request, rest: string): Promise<Response
   return bad("rota inválida", 404);
 }
 
+const FEEDBACK_KINDS = { bug: "Bug", idea: "Ideia" } as const;
+const FEEDBACK_GAP_SECONDS = 60;
+
+async function feedback(env: Env, request: Request): Promise<Response> {
+  const b = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (b?.website) return Response.json({ ok: true });
+  const kind = b?.kind === "bug" || b?.kind === "idea" ? b.kind : null;
+  const title = typeof b?.title === "string" ? b.title.trim() : "";
+  const message = typeof b?.message === "string" ? b.message.trim() : "";
+  const nick = typeof b?.nick === "string" ? b.nick.trim().slice(0, 40) : "";
+  if (!kind) return bad("tipo inválido");
+  if (title.length < 5 || title.length > 100) return bad("título deve ter de 5 a 100 caracteres");
+  if (message.length < 10 || message.length > 3000) return bad("mensagem deve ter de 10 a 3000 caracteres");
+  // shortcut: limite por IP reaproveitando api_cache, trocar por Rate Limiting binding se houver spam
+  const ip = request.headers.get("cf-connecting-ip") ?? "local";
+  const key = `feedback:${ip}`;
+  const now = Math.floor(Date.now() / 1000);
+  const last = await env.DB.prepare("SELECT fetched_at FROM api_cache WHERE cache_key = ?").bind(key).first<number>("fetched_at");
+  if (last && now - last < FEEDBACK_GAP_SECONDS) return bad("aguarde um minuto antes de enviar de novo", 429);
+  const noPing = (t: string) => t.replace(/@/g, "@​");
+  const body = `${noPing(message)}
+
+---
+Enviado pelo site por **${nick ? noPing(nick) : "anônimo"}**.`;
+  const r = await fetch("https://api.github.com/repos/hagizao/deadcards/issues", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: "application/vnd.github+json", "user-agent": "deadcards-site" },
+    body: JSON.stringify({ title: `[${FEEDBACK_KINDS[kind]}] ${noPing(title)}`, body }),
+  });
+  if (!r.ok) return bad("não foi possível enviar agora, tente mais tarde", 502);
+  await env.DB.prepare(UPSERT_CACHE).bind(key, "", now).run();
+  const issue = (await r.json()) as { html_url: string };
+  return Response.json({ url: issue.html_url });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -261,6 +303,7 @@ export default {
       if (!(await currentUser(env, request))?.admin) return bad("sem permissão", 403);
       return codes(env, request, url.pathname.slice("/api/codes/".length));
     }
+    if (url.pathname === "/api/feedback") return request.method === "POST" ? feedback(env, request) : bad("método não suportado", 405);
     if (url.pathname === "/api/redeem") return request.method === "POST" ? redeem(env, request) : bad("método não suportado", 405);
     if (url.pathname === "/api/collection") {
       const user = await currentUser(env, request);
@@ -276,6 +319,8 @@ export default {
       if (admin[1] !== "heroes" && !ID_RE.test(id)) return bad("id inválido");
       return write(env, request, admin[1], id);
     }
+    // Só o país (cf.country), para sugerir o idioma na primeira visita; nada é guardado.
+    if (url.pathname === "/api/locale") return Response.json({ country: request.cf?.country ?? null }, { headers: { "cache-control": "private, no-store" } });
     if (url.pathname === "/api/health") return Response.json({ ok: true });
     if (url.pathname === "/api/data") return appData(env);
     if (url.pathname === "/api/deadlock") {

@@ -67,4 +67,4 @@ Imagens de carta são guardadas no R2 em `shares/`, com fingerprint dos dados pa
 - PNGs de carta, Open Graph e escalação gerados; dimensões conferidas e imagens inspecionadas. A ausência inicial de artes WebP e um redirecionamento de `/index.html` foram corrigidos durante essa verificação.
 - Comparação conferida no Chrome em desktop. A inspeção automatizada foi interrompida pelo usuário; em 15/11/2026, o usuário informou que concluiu a conferência visual e aprovou o resultado.
 
-O PR registra a publicação e o resultado da verificação em produção.
+As mudanças foram preparadas em commits locais. A publicação e o deploy foram cancelados a pedido do usuário; a migration de produção não foi aplicada.

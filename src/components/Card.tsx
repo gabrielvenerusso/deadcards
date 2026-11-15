@@ -2,6 +2,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import type { CSSProperties, PointerEvent } from "react";
 import type { Player } from "../lib/types";
 import { getPlayerOvr, getPlayerTrend, hexToRgba, teamOf } from "../lib/cards";
+import { strings, useT, useLabel } from "../lib/i18n";
 import { getCardTier, ornamentSVG, particleSpecs, rarityStyleVars, ringSVG } from "../lib/rarity";
 import { useData } from "../lib/data";
 import { TeamLogo } from "./TeamLogo";
@@ -9,10 +10,18 @@ import { TrendBadge } from "./TrendBadge";
 
 type Variant = "team" | "medium" | "editor";
 
+const S = strings({
+  pt: { view: "Visualizar Carta", viewOf: (name: string) => `Visualizar carta de ${name}` },
+  en: { view: "View Card", viewOf: (name: string) => `View ${name}'s card` },
+  es: { view: "Ver Carta", viewOf: (name: string) => `Ver la carta de ${name}` },
+});
+
 const STAT_ORDER = ["MIR", "MOV", "MAC", "POL", "SUP", "CON"] as const;
 
 export function Card({ player, variant = "team", onOpen }: { player: Player; variant?: Variant; onOpen?: () => void }) {
   const { teams, settings, heroArt } = useData();
+  const t = useT(S);
+  const label = useLabel();
   const team = teamOf(teams, player);
   const ovr = getPlayerOvr(player);
   const rk = getCardTier(player, settings.tierConfig!);
@@ -83,7 +92,7 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
                 <TrendBadge delta={getPlayerTrend(player)} size={editor ? "editor" : "card"} />
               </div>
               <span className="mt-1.5 px-2 py-0.5 rounded bg-black/65 border border-white/25 text-[10px] font-extrabold uppercase tracking-widest text-zinc-100">
-                {player.position || "Flex"}
+                {label(player.position || "Flex")}
               </span>
               {team.logo ? (
                 <span className="team-logo-frame mt-1.5" title={team.name} style={{ width: editor ? 48 : 40, height: editor ? 48 : 40, borderRadius: 8 }}>
@@ -120,9 +129,9 @@ export function Card({ player, variant = "team", onOpen }: { player: Player; var
           </div>
 
           {onOpen && (
-            <button type="button" className="card-hover-overlay border-0" onClick={onOpen} aria-label={`Visualizar carta de ${player.name}`}>
+            <button type="button" className="card-hover-overlay border-0" onClick={onOpen} aria-label={t.viewOf(player.name)}>
               <span className={`card-hover-cta w-full ${medium ? "max-w-[170px]" : "max-w-[215px]"} py-2.5 px-4 rounded-xl bg-zinc-100 text-zinc-950 text-xs font-extrabold uppercase tracking-wider shadow-[0_0_24px_rgba(255,255,255,0.4)]`}>
-                Visualizar Carta
+                {t.view}
               </span>
             </button>
           )}

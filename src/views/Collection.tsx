@@ -3,11 +3,68 @@ import { useDeferredValue, useState } from "react";
 import { useData } from "../lib/data";
 import { getPlayerOvr, isMainCard, teamOf } from "../lib/cards";
 import { Card } from "../components/Card";
+import { strings, useT, useLabel } from "../lib/i18n";
 
 type SortKey = "ovr" | "name" | "MIR" | "MAC" | "SUP" | "MOV" | "POL" | "CON";
 const PAGE = 24;
 
+const S = strings({
+  pt: {
+    title: "Coleção",
+    count: (n: number) => `${n} carta(s)`,
+    searchPlaceholder: "Buscar jogador, herói, time…",
+    search: "Buscar",
+    team: "Time",
+    allTeams: "Todos os times",
+    hero: "Herói",
+    allHeroes: "Todos os heróis",
+    role: "Role",
+    allRoles: "Todas as roles",
+    sort: "Ordenar",
+    sortBy: (k: string) => `Ordenar: ${k}`,
+    name: "Nome",
+    allVersions: "Todas as versões",
+    more: (n: number) => `Mostrar mais (${n})`,
+  },
+  en: {
+    title: "Collection",
+    count: (n: number) => `${n} card(s)`,
+    searchPlaceholder: "Search player, hero, team…",
+    search: "Search",
+    team: "Team",
+    allTeams: "All teams",
+    hero: "Hero",
+    allHeroes: "All heroes",
+    role: "Role",
+    allRoles: "All roles",
+    sort: "Sort",
+    sortBy: (k: string) => `Sort: ${k}`,
+    name: "Name",
+    allVersions: "All versions",
+    more: (n: number) => `Show more (${n})`,
+  },
+  es: {
+    title: "Colección",
+    count: (n: number) => `${n} carta(s)`,
+    searchPlaceholder: "Buscar jugador, héroe, equipo…",
+    search: "Buscar",
+    team: "Equipo",
+    allTeams: "Todos los equipos",
+    hero: "Héroe",
+    allHeroes: "Todos los héroes",
+    role: "Rol",
+    allRoles: "Todos los roles",
+    sort: "Ordenar",
+    sortBy: (k: string) => `Ordenar: ${k}`,
+    name: "Nombre",
+    allVersions: "Todas las versiones",
+    more: (n: number) => `Mostrar más (${n})`,
+  },
+});
+
 export function Collection({ onOpenCard }: { onOpenCard: (id: string) => void }) {
+  const t = useT(S);
+  const label = useLabel();
   const { teams, players } = useData();
   const [q, setQ] = useState("");
   const [team, setTeam] = useState("ALL");
@@ -31,31 +88,31 @@ export function Collection({ onOpenCard }: { onOpenCard: (id: string) => void })
     <section className="space-y-5">
       <div className="noir-glass rounded-2xl p-5 sm:p-7 space-y-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-[0.11em] text-zinc-100">Coleção</h1>
-          <p className="text-xs text-zinc-400 mt-1.5">{list.length} carta(s)</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-[0.11em] text-zinc-100">{t.title}</h1>
+          <p className="text-xs text-zinc-400 mt-1.5">{t.count(list.length)}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder="Buscar jogador, herói, time…" aria-label="Buscar" className={`${field} w-60 placeholder:text-zinc-500`} />
-          <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Time" className={field}>
-            <option value="ALL">Todos os times</option>
-            {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder={t.searchPlaceholder} aria-label={t.search} className={`${field} w-60 placeholder:text-zinc-500`} />
+          <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label={t.team} className={field}>
+            <option value="ALL">{t.allTeams}</option>
+            {teams.map((tm) => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
           </select>
-          <select value={hero} onChange={(e) => setHero(e.target.value)} aria-label="Herói" className={field}>
-            <option value="ALL">Todos os heróis</option>
+          <select value={hero} onChange={(e) => setHero(e.target.value)} aria-label={t.hero} className={field}>
+            <option value="ALL">{t.allHeroes}</option>
             {heroes.map((h) => <option key={h} value={h}>{h}</option>)}
           </select>
-          <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role" className={field}>
-            <option value="ALL">Todas as roles</option>
-            {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+          <select value={role} onChange={(e) => setRole(e.target.value)} aria-label={t.role} className={field}>
+            <option value="ALL">{t.allRoles}</option>
+            {roles.map((r) => <option key={r} value={r}>{label(r)}</option>)}
           </select>
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Ordenar" className={field}>
-            <option value="ovr">Ordenar: OVR</option>
-            <option value="name">Ordenar: Nome</option>
-            {(["MIR", "MAC", "SUP", "MOV", "POL", "CON"] as const).map((k) => <option key={k} value={k}>Ordenar: {k}</option>)}
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label={t.sort} className={field}>
+            <option value="ovr">{t.sortBy("OVR")}</option>
+            <option value="name">{t.sortBy(t.name)}</option>
+            {(["MIR", "MAC", "SUP", "MOV", "POL", "CON"] as const).map((k) => <option key={k} value={k}>{t.sortBy(k)}</option>)}
           </select>
           <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
             <input type="checkbox" checked={allVersions} onChange={(e) => setAllVersions(e.target.checked)} />
-            Todas as versões
+            {t.allVersions}
           </label>
         </div>
       </div>
@@ -72,7 +129,7 @@ export function Collection({ onOpenCard }: { onOpenCard: (id: string) => void })
       {list.length > limit && (
         <div className="text-center">
           <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="px-5 py-2.5 rounded-xl bg-zinc-100 text-zinc-950 text-xs font-extrabold uppercase tracking-wider cursor-pointer">
-            Mostrar mais ({list.length - limit})
+            {t.more(list.length - limit)}
           </button>
         </div>
       )}
